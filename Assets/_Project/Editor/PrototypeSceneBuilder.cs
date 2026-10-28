@@ -73,6 +73,13 @@ namespace HunterAwakening.EditorTools
                 qualityHint: "aura control was unstable — make small corrections instead of holding the key.",
                 lowHint: "this level no longer challenges your control. Raise it with ].",
                 metric: "stability (%)", lowerIsBetter: false);
+            var renDef = Exercise("aura_ren_output", "Ren Circle", ExerciseCategory.Aura,
+                "Flare Ren above a rising target line through pressure waves without crossing your control ceiling.",
+                new[] { (AttributeId.MaxOutput, 1f), (AttributeId.SustainedOutput, 0.7f), (AttributeId.AuraCapacity, 0.3f) },
+                TechniqueId.Ren, fatigue: 20f, maxLevel: 5, requiresAura: true,
+                qualityHint: "output kept dropping below the target or crossing the ceiling — hold steady and re-push right after each pressure wave.",
+                lowHint: "this output target is easy for you now. Raise it with ].",
+                metric: "stability (%)", lowerIsBetter: false);
 
             var m = new Materials();
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
@@ -137,7 +144,7 @@ namespace HunterAwakening.EditorTools
             BuildLiftRack(m, liftDef);
             BuildSprintCourse(m, sprintDef);
             BuildPrecisionPads(m, precisionDef);
-            BuildAuraArea(m, tenDef);
+            BuildAuraArea(m, tenDef, renDef);
             BuildArena(m, context);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -221,8 +228,17 @@ namespace HunterAwakening.EditorTools
             SetRefs(drill, "pads", pads);
         }
 
-        static void BuildAuraArea(Materials m, ExerciseDefinition def)
+        static void BuildAuraArea(Materials m, ExerciseDefinition def, ExerciseDefinition renDef)
         {
+            var circle = Prim(PrimitiveType.Cylinder, "Ren Circle", null, new Vector3(-20f, 0.03f, 3f), new Vector3(2.4f, 0.03f, 2.4f), m.RenMat);
+            var circleStand = Empty("StandPoint", null, new Vector3(-20f, 1.07f, 3f), 90f);
+            circleStand.transform.SetParent(circle.transform, true);
+            var renDrill = circle.AddComponent<AuraOutputDrill>();
+            SetString(renDrill, "displayName", "Ren Circle");
+            SetInt(renDrill, "intensityLevel", 1);
+            SetRef(renDrill, "definition", renDef);
+            SetRef(renDrill, "standPoint", circleStand.transform);
+
             var stone = Prim(PrimitiveType.Cube, "Meditation Stone", null, new Vector3(-14f, 1.2f, -4f), new Vector3(1.4f, 2.4f, 1.4f), m.Stone);
             var kneel = Empty("KneelPoint", null, new Vector3(-14f, 1f, -5.8f), 0f);
             kneel.transform.SetParent(stone.transform, true);
@@ -412,6 +428,7 @@ namespace HunterAwakening.EditorTools
             public readonly Material Accent = Mat("Accent", new Color(0.95f, 0.75f, 0.2f));
             public readonly Material Stone = Mat("Stone", new Color(0.35f, 0.25f, 0.45f));
             public readonly Material AuraMat = Mat("AuraMat", new Color(0.2f, 0.65f, 0.7f));
+            public readonly Material RenMat = Mat("RenMat", new Color(0.85f, 0.45f, 0.15f));
             public readonly Material ArenaFloor = Mat("ArenaFloor", new Color(0.6f, 0.55f, 0.45f));
             public readonly Material Wall = Mat("Wall", new Color(0.45f, 0.42f, 0.4f));
             public readonly Material Guard = Mat("Guard", new Color(0.3f, 0.55f, 1f));

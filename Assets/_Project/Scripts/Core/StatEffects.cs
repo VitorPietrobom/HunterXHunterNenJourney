@@ -36,8 +36,28 @@ namespace HunterAwakening
         public static float Efficiency(double efficiency) => Mathf.Max(ProgressionMath.MinEfficiency, 1f + 0.5f * G(efficiency));
         public static float RenOutput(double maxOutput) => 12f * (1f + 0.8f * G(maxOutput));
         public static float RenDamageFactor(double maxOutput, double control) => Mathf.Min(1.4f + 0.35f * G(maxOutput) + 0.15f * G(control), 3f);
-        public static float RenLeakage(double control, float renMastery)
-            => Mathf.Clamp(0.45f - 0.12f * G(control) - (renMastery >= MasteryMilestones.RenLowLeak ? 0.1f : 0f), 0.05f, 0.45f);
+
+        /// <summary>How far Max Output has outgrown Control Precision (0 while control keeps up). Drives Ren instability.</summary>
+        public static float RenOverdrive(double maxOutput, double control) => Mathf.Max(0f, G(maxOutput) - G(control));
+
+        public static float RenLeakage(double maxOutput, double control, float renMastery)
+            => Mathf.Clamp(0.25f + 0.35f * RenOverdrive(maxOutput, control) - 0.1f * G(control)
+                           - (renMastery >= MasteryMilestones.RenLowLeak ? 0.1f : 0f), 0.05f, 0.8f);
+
+        /// <summary>Chance that a hit taken while holding Ren knocks it loose.</summary>
+        public static float RenBreakChance(double maxOutput, double control, float renMastery)
+            => Mathf.Clamp(0.12f + 0.3f * RenOverdrive(maxOutput, control) - Mathf.Min(renMastery, 100f) / 400f, 0.03f, 0.7f);
+
+        /// <summary>Damage-taken multiplier while Ren is held (stronger than Ten, much more expensive).</summary>
+        public static float RenDamageTakenMultiplier(double maxOutput) => Mathf.Clamp(0.6f - 0.07f * G(maxOutput), 0.3f, 0.6f);
+
+        public static float RenStagger(double maxOutput) => Mathf.Min(0.35f + 0.1f * G(maxOutput), 0.9f);
+        public static float RenKnockback(double maxOutput) => Mathf.Min(2.5f + 1.5f * G(maxOutput), 8f);
+
+        /// <summary>Highest output (0..1 of the Ren Circle meter) the player can hold before Ren destabilises.</summary>
+        public static float RenControlCeiling(double control) => Mathf.Clamp(0.7f + 0.08f * G(control), 0.7f, 0.97f);
+        /// <summary>Output level (0..1) that is a comfortable challenge for the player's Max Output.</summary>
+        public static float RenComfortOutput(double maxOutput) => Mathf.Clamp(0.5f + 0.08f * G(maxOutput), 0.5f, 0.9f);
         /// <summary>Immediate fatigue per second while holding Ren; Sustained Output reduces it.</summary>
         public static float RenFatiguePerSecond(double sustained) => 0.8f / (1f + 0.6f * G(sustained));
         public static float TenDrain(float tenMastery) => tenMastery >= MasteryMilestones.TenHalfDrain ? 0.75f : 1.5f;
@@ -55,9 +75,9 @@ namespace HunterAwakening
             AttributeId.Mobility => $"Jump height {JumpHeight(v):0.00} m",
             AttributeId.Durability => $"Damage taken −{DamageReduction(v) * 100:0}%",
             AttributeId.AuraCapacity => $"Aura reserve {AuraCapacity(v):0}",
-            AttributeId.MaxOutput => $"Ren output {RenOutput(v):0}/s",
+            AttributeId.MaxOutput => $"Ren output {RenOutput(v):0}/s · Ren guard −{(1f - RenDamageTakenMultiplier(v)) * 100:0}% damage · knockback {RenKnockback(v):0.0}",
             AttributeId.SustainedOutput => $"Ren strain {RenFatiguePerSecond(v):0.00} fatigue/s",
-            AttributeId.ControlPrecision => $"Stable band ±{TenBand(v) * 100:0}%",
+            AttributeId.ControlPrecision => $"Stable band ±{TenBand(v) * 100:0}% · Ren ceiling {RenControlCeiling(v) * 100:0}% (keep ahead of Max Output)",
             AttributeId.Efficiency => $"Efficiency ×{Efficiency(v):0.00}",
             AttributeId.Perception => "No gameplay effect yet (future: aura cues)",
             AttributeId.RecoveryRate => $"Aura recovery {AuraRecovery(v):0.0}/s",

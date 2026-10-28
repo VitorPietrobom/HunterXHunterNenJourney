@@ -84,6 +84,27 @@ namespace HunterAwakening.Tests
             Assert.Less(StatEffects.DamageReduction(huge), 1f);
             Assert.IsFalse(float.IsInfinity(StatEffects.StrengthDamageFactor(huge)));
         }
+
+        [Test]
+        public void Ren_BecomesUnstableWhenOutputOutpacesControl()
+        {
+            Assert.AreEqual(0f, StatEffects.RenOverdrive(10, 10));
+            Assert.AreEqual(0f, StatEffects.RenOverdrive(20, 40), "control ahead of output means no overdrive");
+            Assert.Greater(StatEffects.RenBreakChance(60, 10, 0), StatEffects.RenBreakChance(10, 10, 0));
+            Assert.Greater(StatEffects.RenLeakage(60, 10, 0), StatEffects.RenLeakage(10, 10, 0));
+            Assert.Less(StatEffects.RenBreakChance(60, 10, 100), StatEffects.RenBreakChance(60, 10, 0), "Ren mastery steadies it");
+            Assert.LessOrEqual(StatEffects.RenBreakChance(1e9, 10, 0), 0.7f);
+            Assert.GreaterOrEqual(StatEffects.RenBreakChance(10, 1e9, 1000), 0.03f);
+        }
+
+        [Test]
+        public void Ren_DefenceIsStrongerThanTenAndBounded()
+        {
+            Assert.Less(StatEffects.RenDamageTakenMultiplier(10), StatEffects.TenDamageMultiplier(10, 0));
+            Assert.GreaterOrEqual(StatEffects.RenDamageTakenMultiplier(1e9), 0.3f);
+            Assert.LessOrEqual(StatEffects.RenKnockback(1e9), 8f);
+            Assert.LessOrEqual(StatEffects.RenStagger(1e9), 0.9f);
+        }
     }
 
     public class ProgressionServiceTests

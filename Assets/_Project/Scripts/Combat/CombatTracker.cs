@@ -24,7 +24,7 @@ namespace HunterAwakening
         float damageDealt;
         int enemyAttacks, hitsTaken, blocks, parries, perfectDodges, hitsWithoutTen;
         float damageTaken;
-        int staminaOuts, patternReads;
+        int staminaOuts, patternReads, renBreaks;
 
         public void RegisterPlayerHit(HitResult result, float dealt, bool heavy, bool ren, bool punish)
         {
@@ -46,6 +46,7 @@ namespace HunterAwakening
         public void RegisterBlock() => blocks++;
         public void RegisterStaminaOut() => staminaOuts++;
         public void RegisterPatternRead() => patternReads++;
+        public void RegisterRenBreak() => renBreaks++;
 
         public void RegisterPlayerDamaged(float amount, bool blocked, bool tenActive)
         {
@@ -68,7 +69,7 @@ namespace HunterAwakening
             r.stats.Add($"Hits landed {hitsLanded} · guarded {hitsGuarded} · guard breaks {guardBreaks} · whiffs {whiffs} · punishes {punishes}");
             r.stats.Add($"Damage dealt {damageDealt:0} (avg {avgDamage:0.0}/hit) · taken {damageTaken:0}");
             r.stats.Add($"Rival attacks {enemyAttacks}: hit you {hitsTaken} · blocked {blocks} · parried {parries} · perfect dodges {perfectDodges}");
-            r.stats.Add($"Stamina ran out {staminaOuts}×");
+            r.stats.Add($"Stamina ran out {staminaOuts}×" + (p.IsAuraAwakened ? $" · Ren hits {renHits} · Ren broke {renBreaks}×" : ""));
 
             // Weakness analysis: each line names the cause and the training that addresses it.
             if (landedOrGuarded > 0)
@@ -87,7 +88,11 @@ namespace HunterAwakening
             if (punishes == 0 && enemyAttacks >= 3)
                 r.weaknesses.Add("You never punished the rival's recovery (yellow). Attack right after it whiffs for bonus quality.");
             if (p.IsAuraAwakened && hitsWithoutTen >= 2)
-                r.weaknesses.Add($"{hitsWithoutTen} hits landed without Ten. Toggle Ten (T) before engaging to reduce damage.");
+                r.weaknesses.Add($"{hitsWithoutTen} hits landed without Ten or Ren. Toggle Ten (T) before engaging, or hold Ren (R) to brace.");
+            if (renBreaks > 0)
+                r.weaknesses.Add($"Ren broke under pressure {renBreaks}× — your output outpaces your control. Train Control Precision at the Aura Mat.");
+            if (p.IsAuraAwakened && renHits == 0 && hitsLanded >= 5)
+                r.weaknesses.Add("You never struck with Ren. Hold R as you hit an opening: Ren hits break guard, stagger and knock back.");
             if (!p.IsAuraAwakened && !won && p.TrainingSessions >= 3)
                 r.weaknesses.Add("Your aura is still dormant. Meditate at the Meditation Stone to awaken it.");
             if (won && r.weaknesses.Count == 0)

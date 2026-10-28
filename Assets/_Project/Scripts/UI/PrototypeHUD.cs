@@ -77,7 +77,7 @@ namespace HunterAwakening
             y += h + 4;
             if (p.IsAuraAwakened)
             {
-                string mode = player.Aura.RenActive ? " · REN" : player.Aura.TenActive ? " · TEN" : "";
+                string mode = player.Aura.RenBroken ? " · REN BROKEN" : player.Aura.RenActive ? " · REN" : player.Aura.TenActive ? " · TEN" : "";
                 HudGui.Bar(new Rect(x, y, w, h), player.Aura.Current / Mathf.Max(1f, player.Aura.Capacity), new Color(0.4f, 0.8f, 1f),
                     $"Aura {player.Aura.Current:0}/{player.Aura.Capacity:0}{mode}");
                 y += h + 4;

@@ -8,6 +8,10 @@ namespace HunterAwakening
         public float damage;
         public TechniqueId technique;
         public bool heavy;
+        /// <summary>Delivered with Ren: breaks guard even when light, staggers and knocks back.</summary>
+        public bool ren;
+        public float renStagger;
+        public float knockback;
     }
 
     public enum HitResult { None, Landed, Guarded, GuardBroken }
@@ -183,7 +187,14 @@ namespace HunterAwakening
             float nen = aura.OutgoingMultiplier;
             float damage = current.baseDamage * strength * technique * execution * nen * Mathf.Lerp(0.8f, 1f, P.Fatigue.Readiness);
 
-            var result = target.ReceiveHit(new HitInfo { damage = damage, technique = current.technique, heavy = current.heavy }, out float dealt);
+            double maxOutput = P.GetAttribute(AttributeId.MaxOutput);
+            var hit = new HitInfo { damage = damage, technique = current.technique, heavy = current.heavy, ren = aura.RenActive };
+            if (hit.ren)
+            {
+                hit.renStagger = StatEffects.RenStagger(maxOutput) * (current.heavy ? 1.6f : 1f);
+                hit.knockback = StatEffects.RenKnockback(maxOutput) * (current.heavy ? 1.5f : 1f);
+            }
+            var result = target.ReceiveHit(hit, out float dealt);
             if (result == HitResult.Guarded) quality *= 0.3f;
 
             P.ApplyMastery(current.technique, quality);
@@ -234,13 +245,21 @@ namespace HunterAwakening
             }
 
             bool tenWasActive = aura.TenActive;
+            bool renWasActive = aura.RenActive;
             damage *= aura.IncomingMultiplier;
             if (tenWasActive) P.ApplyMastery(TechniqueId.Ten, 0.5f);
             damage *= 1f - StatEffects.DamageReduction(P.GetAttribute(AttributeId.Durability));
 
+            // Ren protected this hit; the impact may still knock it loose for the next ones.
+            if (renWasActive)
+            {
+                if (aura.TryBreakRen()) tracker?.RegisterRenBreak();
+                else P.ApplyMastery(TechniqueId.Ren, 0.4f);
+            }
+
             float dealt = health.TakeDamage(damage);
             P.AddExertion(1.5f);
-            tracker?.RegisterPlayerDamaged(dealt, blocked, tenWasActive);
+            tracker?.RegisterPlayerDamaged(dealt, blocked, tenWasActive || renWasActive);
             if (!blocked && dealt > 0f) HitTaken?.Invoke();
         }
 

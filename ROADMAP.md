@@ -30,14 +30,13 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 
 ---
 
-## 🔥 Next up — Ren overhaul
+## Ren overhaul
 
-Ren is currently only an outgoing damage multiplier. Planned (agreed direction):
-
-- [ ] 🔥 **Ren drill** (new exercise): sustain Ren under disturbances / while dodging. Trains **Max Output** and **Sustained Output**. *Max Output currently has no training source at all, so Ren's damage bonus can never grow.*
-- [ ] 🔥 **Ren is also defence**: reduces incoming damage (more than Ten, at a much higher aura cost).
-- [ ] 🔥 **Output vs. control**: when output outstrips Control Precision, aura leaks faster, Ren can sputter out when hit, and a break opens a short vulnerability window (GDD §7.3).
-- [ ] 🔥 **Ren hits feel heavier**: guard-break on light attacks, longer stagger, knockback.
+- [x] ⚠️ **Ren Circle drill**: flare output above a rising target through pressure waves without crossing the control ceiling. Trains **Max Output**, **Sustained Output**, Aura Capacity and Ren mastery. *Needs playtesting for difficulty and aura cost.*
+- [x] ⚠️ **Ren is also defence**: cuts incoming damage more than Ten (doesn't stack with Ten — that's Ken).
+- [x] ⚠️ **Output vs. control**: leakage and the chance a hit breaks Ren grow when Max Output outpaces Control Precision; a break locks Ren for 1.5 s and opens a 1 s window of +30% damage taken. Combat report flags Ren breaks.
+- [x] ⚠️ **Ren hits feel heavier**: even light Ren hits break guard; Ren hits stagger (a Ren heavy cuts through the rival's wind-up armour) and knock back.
+- [ ] 🔥 **Playtest and tune** the numbers above (break chance, lockout, knockback, drill aura cost).
 - [ ] ◻️ **Intimidation**: a clearly stronger Ren makes weaker enemies hesitate and guard more (GDD §8.3 power gaps).
 - [ ] ◻️ Advanced applications after Ren feels right: **Ken** (Ten + Ren stance), **Ko**, **Ryu**.
 
@@ -46,7 +45,7 @@ Ren is currently only an outgoing damage multiplier. Planned (agreed direction):
 ## ⭐ Progression gaps
 
 - [ ] ⭐ **Every attribute needs a training source.** Today:
-  - Max Output — none (see Ren drill)
+  - ~~Max Output — none~~ → Ren Circle
   - Perception — none, and no gameplay effect yet (future: aura cues / Gyo)
   - Durability — only a 0.2 side effect of the Lift Rack
   - Efficiency, Recovery Rate — Efficiency only weakly via the Aura Mat; Recovery Rate none

@@ -54,6 +54,7 @@ namespace HunterAwakening
         float cooldown;
         float verticalVelocity;
         float flashTimer;
+        Vector3 knockback;
         Vector3 spawnPosition;
         Quaternion spawnRotation;
 
@@ -96,6 +97,7 @@ namespace HunterAwakening
             controller.enabled = true;
             health.RestoreFull();
             recentPlayerAttacks.Clear();
+            knockback = Vector3.zero;
             cooldown = 1.2f;
             Enter(State.Chase, 0f);
         }
@@ -114,6 +116,7 @@ namespace HunterAwakening
             transform.SetPositionAndRotation(spawnPosition, spawnRotation);
             controller.enabled = true;
             health.RestoreFull();
+            knockback = Vector3.zero;
             Enter(State.Inactive, 0f);
         }
 
@@ -154,7 +157,7 @@ namespace HunterAwakening
 
             if (state == State.Guard)
             {
-                if (hit.heavy)
+                if (hit.heavy || hit.ren)
                 {
                     damage *= guardBreakMultiplier;
                     bool longStagger = GameSession.Instance.Progression.HasMastery(TechniqueId.HeavyAttack, MasteryMilestones.HeavyLongStagger);
@@ -169,7 +172,16 @@ namespace HunterAwakening
             }
             else if (hit.heavy && state == State.Chase)
             {
-                Enter(State.Stagger, 0.35f); // heavies interrupt movement; the telegraph has armour against everything
+                Enter(State.Stagger, 0.35f); // heavies interrupt movement; the telegraph has armour (only a Ren heavy breaks it)
+            }
+
+            if (hit.ren && result != HitResult.Guarded)
+            {
+                Vector3 away = transform.position - player.transform.position;
+                away.y = 0f;
+                knockback = away.normalized * hit.knockback;
+                bool armoured = state == State.Telegraph && !hit.heavy;
+                if (!armoured && state != State.Stagger) Enter(State.Stagger, hit.renStagger);
             }
 
             dealt = health.TakeDamage(damage);
@@ -189,8 +201,9 @@ namespace HunterAwakening
             if (controller.enabled && state != State.Defeated)
             {
                 verticalVelocity = controller.isGrounded ? -2f : verticalVelocity - 22f * dt;
-                controller.Move(Vector3.up * (verticalVelocity * dt));
+                controller.Move((knockback + Vector3.up * verticalVelocity) * dt);
             }
+            knockback = Vector3.MoveTowards(knockback, Vector3.zero, 14f * dt);
 
             stateTimer -= dt;
             switch (state)
