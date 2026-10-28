@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a8755c55e2b61740b2bae9abd9800b9, type: 3}
+  m_Name: Exercise_aura_ten_control
+  m_EditorClassIdentifier: HunterAwakening::HunterAwakening.ExerciseDefinition
+  id: aura_ten_control
+  displayName: Aura Mat
+  category: 1
+  description: Hold aura flow inside the stable band despite drift and disturbances.
+  targets:
+  - attribute: 9
+    specificity: 1
+  - attribute: 8
+    specificity: 0.6
+  - attribute: 6
+    specificity: 0.4
+  - attribute: 10
+    specificity: 0.3
+  hasMastery: 1
+  masteryTechnique: 6
+  fatigueCost: 16
+  minCompletionForAdaptation: 0.3
+  maxIntensityLevel: 5
+  requiresAura: 1
+  qualityHint: "aura control was unstable \u2014 make small corrections instead of holding the key."
+  lowIntensityHint: this level no longer challenges your control. Raise it with ].
+  metricLabel: stability (%)
+  lowerMetricIsBetter: 0

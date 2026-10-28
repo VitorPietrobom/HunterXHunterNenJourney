@@ -1,0 +1,526 @@
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEditor.Animations;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+
+namespace HunterAwakening.EditorTools
+{
+    /// <summary>
+    /// Generates the training sandbox (placeholder primitives), its data assets and materials.
+    /// Re-running it rebuilds the scene and updates existing assets in place.
+    /// </summary>
+    public static class PrototypeSceneBuilder
+    {
+        const string Root = "Assets/_Project";
+        const string DataDir = Root + "/Data";
+        const string MaterialDir = Root + "/Materials";
+        const string SceneDir = Root + "/Scenes";
+        public const string ScenePath = SceneDir + "/TrainingSandbox.unity";
+
+        [MenuItem("Hunter Awakening/Build Prototype Scene", priority = 0)]
+        public static void BuildFromMenu()
+        {
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            Build();
+        }
+
+        [MenuItem("Hunter Awakening/Open Save Folder", priority = 20)]
+        public static void OpenSaveFolder() => EditorUtility.RevealInFinder(Application.persistentDataPath);
+
+        [MenuItem("Hunter Awakening/Delete Save File", priority = 21)]
+        public static void DeleteSave()
+        {
+            var saves = new SaveService();
+            if (!saves.Exists) { Debug.Log("[Hunter Awakening] No save file to delete."); return; }
+            if (EditorUtility.DisplayDialog("Delete save", $"Delete {saves.FilePath}?", "Delete", "Cancel"))
+                saves.Delete();
+        }
+
+        public static void Build()
+        {
+            EnsureFolder(Root);
+            EnsureFolder(DataDir);
+            EnsureFolder(MaterialDir);
+            EnsureFolder(SceneDir);
+
+            var config = CreateConfig();
+            var liftDef = Exercise("lift_rack", "Lift Rack", ExerciseCategory.Physical,
+                "Pick a load and time each rep inside the form window.",
+                new[] { (AttributeId.Strength, 1f), (AttributeId.Durability, 0.2f) }, TechniqueId.Lift,
+                fatigue: 22f, maxLevel: 10, requiresAura: false,
+                qualityHint: "press when the needle is inside the green zone; heavier loads narrow it.",
+                lowHint: "Strength progress reduced because the selected load is now too easy. Raise it with ].",
+                metric: "heaviest completed set (kg)", lowerIsBetter: false);
+            var sprintDef = Exercise("sprint_course", "Sprint Course", ExerciseCategory.Physical,
+                "Run laps through the posts in order. Hold sprint the whole way.",
+                new[] { (AttributeId.Speed, 1f), (AttributeId.Endurance, 0.7f) }, null,
+                fatigue: 24f, maxLevel: 6, requiresAura: false,
+                qualityHint: "you spent too long walking or standing — hold Shift and manage stamina.",
+                lowHint: "this lap count is comfortable for your Endurance now. Add laps with ].",
+                metric: "average lap time (s)", lowerIsBetter: true);
+            var precisionDef = Exercise("precision_pads", "Precision Pads", ExerciseCategory.Physical,
+                "Reach each glowing pad before its window closes. Raised pads need a jump.",
+                new[] { (AttributeId.Coordination, 1f), (AttributeId.Mobility, 0.6f), (AttributeId.Speed, 0.2f) }, TechniqueId.Footwork,
+                fatigue: 14f, maxLevel: 7, requiresAura: false,
+                qualityHint: "pads were reached late or missed — plan your route and jump early for raised pads.",
+                lowHint: "the window is generous for your Coordination now. Shorten it with ].",
+                metric: "hit rate (%)", lowerIsBetter: false);
+            var tenDef = Exercise("aura_ten_control", "Aura Mat", ExerciseCategory.Aura,
+                "Hold aura flow inside the stable band despite drift and disturbances.",
+                new[] { (AttributeId.ControlPrecision, 1f), (AttributeId.SustainedOutput, 0.6f), (AttributeId.AuraCapacity, 0.4f), (AttributeId.Efficiency, 0.3f) },
+                TechniqueId.Ten, fatigue: 16f, maxLevel: 5, requiresAura: true,
+                qualityHint: "aura control was unstable — make small corrections instead of holding the key.",
+                lowHint: "this level no longer challenges your control. Raise it with ].",
+                metric: "stability (%)", lowerIsBetter: false);
+
+            var m = new Materials();
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
+
+            var ground = Prim(PrimitiveType.Plane, "Ground", null, Vector3.zero, new Vector3(10f, 1f, 10f), m.Ground);
+            ground.isStatic = true;
+
+            // Player
+            var player = Prim(PrimitiveType.Capsule, "Player", null, new Vector3(0f, 1f, 0f), Vector3.one, m.Player);
+            Object.DestroyImmediate(player.GetComponent<CapsuleCollider>());
+            player.tag = "Player";
+            var cc = player.AddComponent<CharacterController>();
+            cc.height = 2f;
+            cc.radius = 0.4f;
+            cc.center = Vector3.zero;
+            cc.stepOffset = 0.3f;
+            var model = AttachPlayerModel(player, cc);
+            if (model != null)
+            {
+                player.GetComponent<MeshRenderer>().enabled = false; // capsule stays as a fallback visual
+                var animation = player.AddComponent<PlayerAnimator>();
+                SetRef(animation, "animator", model.GetComponent<Animator>());
+                SetFloat(animation, "runClipSpeed", PlayerModelSetup.ClipSpeed("Run", 5.58f));
+                SetFloat(animation, "sprintClipSpeed", PlayerModelSetup.ClipSpeed("Sprint", 5.05f));
+            }
+            else Prim(PrimitiveType.Cube, "Visor", player.transform, new Vector3(0f, 0.5f, 0.35f), new Vector3(0.6f, 0.2f, 0.3f), m.Dark, false);
+            var auraLightGo = new GameObject("AuraLight");
+            auraLightGo.transform.SetParent(player.transform, false);
+            var auraLight = auraLightGo.AddComponent<Light>();
+            auraLight.type = LightType.Point;
+            auraLight.range = 4f;
+            auraLight.enabled = false;
+
+            var input = player.AddComponent<InputReader>();
+            player.AddComponent<PlayerVitals>();
+            player.AddComponent<Health>();
+            var motor = player.AddComponent<PlayerMotor>();
+            player.AddComponent<PlayerCombat>();
+            var aura = player.AddComponent<AuraController>();
+            player.AddComponent<PlayerInteractor>();
+            var context = player.AddComponent<PlayerContext>();
+            SetRef(aura, "auraLight", auraLight);
+
+            // Camera
+            var camera = Camera.main;
+            camera.transform.SetPositionAndRotation(new Vector3(0f, 3f, -6f), Quaternion.Euler(15f, 0f, 0f));
+            var tpc = camera.gameObject.AddComponent<ThirdPersonCamera>();
+            SetRef(tpc, "target", player.transform);
+            SetRef(tpc, "input", input);
+            SetRef(motor, "cameraTransform", camera.transform);
+
+            // Systems
+            var systems = new GameObject("GameSession");
+            var session = systems.AddComponent<GameSession>();
+            SetRef(session, "config", config);
+            SetRef(session, "player", context);
+            var hud = systems.AddComponent<PrototypeHUD>();
+            SetRef(hud, "player", context);
+            SetRef(hud, "worldCamera", camera);
+
+            BuildRestBench(m);
+            BuildLiftRack(m, liftDef);
+            BuildSprintCourse(m, sprintDef);
+            BuildPrecisionPads(m, precisionDef);
+            BuildAuraArea(m, tenDef);
+            BuildArena(m, context);
+
+            EditorSceneManager.SaveScene(scene, ScenePath);
+            AddToBuildSettings(ScenePath);
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[Hunter Awakening] Built {ScenePath}. Press Play to start.");
+        }
+
+        // ------------------------------------------------------------------ Areas
+
+        static void BuildRestBench(Materials m)
+        {
+            var bench = Prim(PrimitiveType.Cube, "Rest Bench", null, new Vector3(0f, 0.225f, 7f), new Vector3(2.2f, 0.45f, 0.7f), m.Wood);
+            var rest = bench.AddComponent<RestBench>();
+            var seat = Empty("SeatPoint", null, new Vector3(0f, 1f, 6.1f), 180f);
+            seat.transform.SetParent(bench.transform, true);
+            SetString(rest, "displayName", "Rest Bench");
+            SetRef(rest, "seatPoint", seat.transform);
+        }
+
+        static void BuildLiftRack(Materials m, ExerciseDefinition def)
+        {
+            var root = Empty("Lift Rack", null, new Vector3(-8f, 0f, 5f), 0f);
+            Prim(PrimitiveType.Cube, "Post L", root.transform, new Vector3(-1.3f, 1f, 0.6f), new Vector3(0.2f, 2f, 0.2f), m.Metal);
+            Prim(PrimitiveType.Cube, "Post R", root.transform, new Vector3(1.3f, 1f, 0.6f), new Vector3(0.2f, 2f, 0.2f), m.Metal);
+            var barbell = Empty("Barbell", root.transform, new Vector3(0f, 1.2f, 0.6f), 0f, local: true);
+            var bar = Prim(PrimitiveType.Cylinder, "Bar", barbell.transform, Vector3.zero, new Vector3(0.07f, 1.5f, 0.07f), m.Metal, false);
+            bar.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            foreach (float x in new[] { -1.1f, 1.1f })
+            {
+                var plate = Prim(PrimitiveType.Cylinder, "Plate", barbell.transform, new Vector3(x, 0f, 0f), new Vector3(0.55f, 0.05f, 0.55f), m.Dark, false);
+                plate.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            }
+            var stand = Empty("StandPoint", root.transform, new Vector3(0f, 1f, 0f), 0f, local: true);
+
+            var drill = root.AddComponent<LiftDrill>();
+            SetString(drill, "displayName", "Lift Rack");
+            SetFloat(drill, "interactRadius", 3f);
+            SetRef(drill, "definition", def);
+            SetRef(drill, "barbell", barbell.transform);
+            SetRef(drill, "standPoint", stand.transform);
+        }
+
+        static void BuildSprintCourse(Materials m, ExerciseDefinition def)
+        {
+            var root = Empty("Sprint Course", null, new Vector3(0f, 0f, -24f), 0f);
+            const int count = 8;
+            var checkpoints = new List<Object>();
+            for (int i = 1; i <= count; i++)
+            {
+                float a = i * Mathf.PI * 2f / count;
+                var post = Prim(PrimitiveType.Cylinder, $"Checkpoint {i}", root.transform,
+                    new Vector3(Mathf.Cos(a) * 14f, 1.5f, Mathf.Sin(a) * 8f), new Vector3(0.5f, 1.5f, 0.5f), m.Checkpoint, false);
+                checkpoints.Add(post.transform);
+            }
+            var start = Prim(PrimitiveType.Cube, "Sprint Start", root.transform, new Vector3(14f, 0.05f, 0f), new Vector3(3f, 0.1f, 1f), m.Accent, false);
+            var drill = start.AddComponent<SprintCourseDrill>();
+            SetString(drill, "displayName", "Sprint Course");
+            SetFloat(drill, "interactRadius", 3f);
+            SetInt(drill, "intensityLevel", 1);
+            SetRef(drill, "definition", def);
+            SetRefs(drill, "checkpoints", checkpoints);
+        }
+
+        static void BuildPrecisionPads(Materials m, ExerciseDefinition def)
+        {
+            var root = Empty("Precision Pads", null, new Vector3(10f, 0f, 8f), 0f);
+            float[] heights = { 0.05f, 0.05f, 0.25f, 0.05f, 0.4f, 0.05f, 0.25f, 0.05f, 0.05f };
+            var pads = new List<Object>();
+            for (int i = 0; i < 9; i++)
+            {
+                float x = (i % 3 - 1) * 2.6f;
+                float z = (i / 3 - 1) * 2.6f;
+                var pad = Prim(PrimitiveType.Cylinder, $"Pad {i + 1}", root.transform, new Vector3(x, heights[i], z), new Vector3(1.6f, heights[i], 1.6f), m.Pad);
+                pads.Add(pad.transform);
+            }
+            var console = Prim(PrimitiveType.Cube, "Precision Console", root.transform, new Vector3(0f, 0.5f, -5f), new Vector3(0.8f, 1f, 0.4f), m.Accent);
+            var drill = console.AddComponent<PrecisionCourseDrill>();
+            SetString(drill, "displayName", "Precision Pads");
+            SetRef(drill, "definition", def);
+            SetRefs(drill, "pads", pads);
+        }
+
+        static void BuildAuraArea(Materials m, ExerciseDefinition def)
+        {
+            var stone = Prim(PrimitiveType.Cube, "Meditation Stone", null, new Vector3(-14f, 1.2f, -4f), new Vector3(1.4f, 2.4f, 1.4f), m.Stone);
+            var kneel = Empty("KneelPoint", null, new Vector3(-14f, 1f, -5.8f), 0f);
+            kneel.transform.SetParent(stone.transform, true);
+            var awakening = stone.AddComponent<AwakeningStone>();
+            SetString(awakening, "displayName", "Meditation Stone");
+            SetFloat(awakening, "interactRadius", 3f);
+            SetRef(awakening, "kneelPoint", kneel.transform);
+
+            var mat = Prim(PrimitiveType.Cylinder, "Aura Mat", null, new Vector3(-14f, 0.03f, 3f), new Vector3(2.4f, 0.03f, 2.4f), m.AuraMat);
+            var stand = Empty("StandPoint", null, new Vector3(-14f, 1.07f, 3f), 0f);
+            stand.transform.SetParent(mat.transform, true);
+            var drill = mat.AddComponent<AuraControlDrill>();
+            SetString(drill, "displayName", "Aura Mat");
+            SetInt(drill, "intensityLevel", 1);
+            SetRef(drill, "definition", def);
+            SetRef(drill, "standPoint", stand.transform);
+        }
+
+        static void BuildArena(Materials m, PlayerContext player)
+        {
+            var root = Empty("Sparring Arena", null, new Vector3(24f, 0f, -4f), 0f);
+            Prim(PrimitiveType.Cube, "Floor", root.transform, new Vector3(0f, 0.01f, 0f), new Vector3(18f, 0.02f, 18f), m.ArenaFloor, false);
+            Prim(PrimitiveType.Cube, "Wall N", root.transform, new Vector3(0f, 0.6f, 9f), new Vector3(18.5f, 1.2f, 0.5f), m.Wall);
+            Prim(PrimitiveType.Cube, "Wall S", root.transform, new Vector3(0f, 0.6f, -9f), new Vector3(18.5f, 1.2f, 0.5f), m.Wall);
+            Prim(PrimitiveType.Cube, "Wall E", root.transform, new Vector3(9f, 0.6f, 0f), new Vector3(0.5f, 1.2f, 18f), m.Wall);
+            Prim(PrimitiveType.Cube, "Wall W1", root.transform, new Vector3(-9f, 0.6f, 5.5f), new Vector3(0.5f, 1.2f, 7f), m.Wall);
+            Prim(PrimitiveType.Cube, "Wall W2", root.transform, new Vector3(-9f, 0.6f, -5.5f), new Vector3(0.5f, 1.2f, 7f), m.Wall);
+
+            var enemy = Prim(PrimitiveType.Capsule, "Sparring Rival", root.transform, new Vector3(3f, 1f, 0f), Vector3.one, m.Enemy);
+            enemy.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
+            Object.DestroyImmediate(enemy.GetComponent<CapsuleCollider>());
+            var ecc = enemy.AddComponent<CharacterController>();
+            ecc.height = 2f;
+            ecc.radius = 0.45f;
+            ecc.center = Vector3.zero;
+            Prim(PrimitiveType.Cube, "Visor", enemy.transform, new Vector3(0f, 0.5f, 0.35f), new Vector3(0.6f, 0.2f, 0.3f), m.Dark, false);
+            var guard = Prim(PrimitiveType.Cube, "Guard", enemy.transform, new Vector3(0f, 0.1f, 0.6f), new Vector3(1.2f, 1.4f, 0.12f), m.Guard, false);
+            guard.SetActive(false);
+            var controller = enemy.AddComponent<EnemyController>();
+            SetRef(controller, "bodyRenderer", enemy.GetComponent<Renderer>());
+            SetRef(controller, "guardVisual", guard);
+
+            var post = Prim(PrimitiveType.Cube, "Arena Post", root.transform, new Vector3(-11f, 1f, 2.5f), new Vector3(0.3f, 2f, 0.3f), m.Accent);
+            var entry = Empty("EntryPoint", root.transform, new Vector3(-11f, 1f, 0f), 90f, local: true);
+            var arena = post.AddComponent<ArenaController>();
+            SetString(arena, "displayName", "Sparring Arena");
+            SetFloat(arena, "interactRadius", 3f);
+            SetRef(arena, "enemy", controller);
+            SetRef(arena, "arenaCenter", root.transform);
+            SetRef(arena, "entryPoint", entry.transform);
+        }
+
+        // ------------------------------------------------------------------ Player model
+
+        const string PlayerControllerPath = Root + "/Art/Characters/Killua/Killua.controller";
+        /// <summary>Model height in metres (rest pose). Killua's native height is ~1.56 m; scaled to fill the 2 m controller.</summary>
+        const float PlayerModelHeight = 1.9f;
+
+        static GameObject AttachPlayerModel(GameObject player, CharacterController controller)
+        {
+            if (AssetImporter.GetAtPath(PlayerModelSetup.ModelPath) == null) return null;
+            // Always rebuild the avatar: a stale reference pose silently distorts every retargeted clip.
+            var avatar = PlayerModelSetup.Configure();
+            if (avatar == null || !avatar.isHuman) return null;
+
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerModelSetup.ModelPath);
+            var model = Object.Instantiate(prefab, player.transform);
+            model.name = "Model";
+            model.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+
+            var animator = model.GetComponent<Animator>();
+            if (animator == null) animator = model.AddComponent<Animator>();
+            animator.avatar = avatar;
+            animator.applyRootMotion = false;
+            animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+            animator.runtimeAnimatorController = CreatePlayerController();
+
+            var renderers = model.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0)
+            {
+                Object.DestroyImmediate(model);
+                return null;
+            }
+            var bounds = ModelBounds(renderers);
+            model.transform.localScale *= PlayerModelHeight / bounds.size.y;
+
+            // Humanoid clips put the soles at the model origin, so the origin goes on the ground: the controller's
+            // bottom minus its skin width (the gap CharacterController keeps above the floor), centred on its axis.
+            model.transform.localPosition = controller.center - Vector3.up * (controller.height * 0.5f + controller.skinWidth);
+            return model;
+        }
+
+        /// <summary>
+        /// One state per Mixamo clip, named like the clip; PlayerAnimator cross-fades between them from code, so the
+        /// controller needs no transitions.
+        /// </summary>
+        static RuntimeAnimatorController CreatePlayerController()
+        {
+            PlayerModelSetup.EnsureAnimationsConfigured();
+            var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(PlayerControllerPath);
+            if (controller == null) controller = AnimatorController.CreateAnimatorControllerAtPath(PlayerControllerPath);
+            var machine = controller.layers[0].stateMachine;
+            foreach (var child in machine.states) machine.RemoveState(child.state);
+
+            AnimatorState idle = null;
+            foreach (var (file, _, _) in PlayerModelSetup.Clips)
+            {
+                var clip = PlayerModelSetup.LoadClip(file);
+                if (clip == null) continue;
+                var state = machine.AddState(file);
+                state.motion = clip;
+                state.writeDefaultValues = true;
+                // Foot IK plants the feet where the source clip had them; without it, Killua's different leg
+                // proportions leave the feet rotated (most visibly the lead/left foot in the fighting stance).
+                state.iKOnFeet = true;
+                if (file == "Idle") idle = state;
+            }
+            if (idle != null) machine.defaultState = idle;
+            else Debug.LogWarning($"[Hunter Awakening] No Idle clip in {PlayerModelSetup.AnimationDir}; the player will hold its rest pose.");
+            EditorUtility.SetDirty(controller);
+            AssetDatabase.SaveAssets();
+            return controller;
+        }
+
+        static Bounds ModelBounds(Renderer[] renderers)
+        {
+            var b = renderers[0].bounds;
+            foreach (var r in renderers) b.Encapsulate(r.bounds);
+            return b;
+        }
+
+        // ------------------------------------------------------------------ Assets
+
+        static ProgressionConfig CreateConfig()
+        {
+            string path = DataDir + "/ProgressionConfig.asset";
+            var config = AssetDatabase.LoadAssetAtPath<ProgressionConfig>(path);
+            if (config == null)
+            {
+                config = ScriptableObject.CreateInstance<ProgressionConfig>();
+                config.PopulateDefaults();
+                AssetDatabase.CreateAsset(config, path);
+            }
+            return config;
+        }
+
+        static ExerciseDefinition Exercise(string id, string displayName, ExerciseCategory category, string description,
+            (AttributeId attribute, float specificity)[] targets, TechniqueId? mastery, float fatigue, int maxLevel, bool requiresAura,
+            string qualityHint, string lowHint, string metric, bool lowerIsBetter)
+        {
+            string path = $"{DataDir}/Exercise_{id}.asset";
+            var def = AssetDatabase.LoadAssetAtPath<ExerciseDefinition>(path);
+            if (def == null)
+            {
+                def = ScriptableObject.CreateInstance<ExerciseDefinition>();
+                AssetDatabase.CreateAsset(def, path);
+            }
+            def.id = id;
+            def.displayName = displayName;
+            def.category = category;
+            def.description = description;
+            def.targets = new List<AttributeTarget>();
+            foreach (var t in targets) def.targets.Add(new AttributeTarget { attribute = t.attribute, specificity = t.specificity });
+            def.hasMastery = mastery.HasValue;
+            def.masteryTechnique = mastery ?? default;
+            def.fatigueCost = fatigue;
+            def.maxIntensityLevel = maxLevel;
+            def.requiresAura = requiresAura;
+            def.qualityHint = qualityHint;
+            def.lowIntensityHint = lowHint;
+            def.metricLabel = metric;
+            def.lowerMetricIsBetter = lowerIsBetter;
+            EditorUtility.SetDirty(def);
+            return def;
+        }
+
+        class Materials
+        {
+            public readonly Material Ground = Mat("Ground", new Color(0.36f, 0.45f, 0.32f));
+            public readonly Material Player = Mat("Player", new Color(0.25f, 0.5f, 0.85f));
+            public readonly Material Enemy = Mat("Enemy", new Color(0.75f, 0.3f, 0.3f));
+            public readonly Material Dark = Mat("Dark", new Color(0.12f, 0.12f, 0.14f));
+            public readonly Material Metal = Mat("Metal", new Color(0.6f, 0.62f, 0.66f));
+            public readonly Material Wood = Mat("Wood", new Color(0.55f, 0.38f, 0.22f));
+            public readonly Material Checkpoint = Mat("Checkpoint", new Color(0.5f, 0.5f, 0.55f));
+            public readonly Material Pad = Mat("Pad", new Color(0.35f, 0.4f, 0.5f));
+            public readonly Material Accent = Mat("Accent", new Color(0.95f, 0.75f, 0.2f));
+            public readonly Material Stone = Mat("Stone", new Color(0.35f, 0.25f, 0.45f));
+            public readonly Material AuraMat = Mat("AuraMat", new Color(0.2f, 0.65f, 0.7f));
+            public readonly Material ArenaFloor = Mat("ArenaFloor", new Color(0.6f, 0.55f, 0.45f));
+            public readonly Material Wall = Mat("Wall", new Color(0.45f, 0.42f, 0.4f));
+            public readonly Material Guard = Mat("Guard", new Color(0.3f, 0.55f, 1f));
+        }
+
+        static Material Mat(string name, Color color)
+        {
+            string path = $"{MaterialDir}/{name}.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+                mat = new Material(shader);
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            mat.color = color;
+            EditorUtility.SetDirty(mat);
+            return mat;
+        }
+
+        // ------------------------------------------------------------------ Helpers
+
+        static GameObject Prim(PrimitiveType type, string name, Transform parent, Vector3 localPosition, Vector3 scale, Material material, bool collider = true)
+        {
+            var go = GameObject.CreatePrimitive(type);
+            go.name = name;
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPosition;
+            go.transform.localScale = scale;
+            go.GetComponent<Renderer>().sharedMaterial = material;
+            if (!collider) Object.DestroyImmediate(go.GetComponent<Collider>());
+            return go;
+        }
+
+        static GameObject Empty(string name, Transform parent, Vector3 position, float yaw, bool local = false)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            if (local) go.transform.SetLocalPositionAndRotation(position, Quaternion.Euler(0f, yaw, 0f));
+            else go.transform.SetPositionAndRotation(position, Quaternion.Euler(0f, yaw, 0f));
+            return go;
+        }
+
+        static SerializedProperty Prop(SerializedObject so, string field)
+        {
+            var p = so.FindProperty(field);
+            if (p == null) Debug.LogError($"[Hunter Awakening] Field '{field}' not found on {so.targetObject.GetType().Name}.");
+            return p;
+        }
+
+        static void SetRef(Object target, string field, Object value)
+        {
+            var so = new SerializedObject(target);
+            var p = Prop(so, field);
+            if (p == null) return;
+            p.objectReferenceValue = value;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static void SetRefs(Object target, string field, IList<Object> values)
+        {
+            var so = new SerializedObject(target);
+            var p = Prop(so, field);
+            if (p == null) return;
+            p.arraySize = values.Count;
+            for (int i = 0; i < values.Count; i++) p.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static void SetString(Object target, string field, string value)
+        {
+            var so = new SerializedObject(target);
+            var p = Prop(so, field);
+            if (p == null) return;
+            p.stringValue = value;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static void SetFloat(Object target, string field, float value)
+        {
+            var so = new SerializedObject(target);
+            var p = Prop(so, field);
+            if (p == null) return;
+            p.floatValue = value;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static void SetInt(Object target, string field, int value)
+        {
+            var so = new SerializedObject(target);
+            var p = Prop(so, field);
+            if (p == null) return;
+            p.intValue = value;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static void EnsureFolder(string path)
+        {
+            if (AssetDatabase.IsValidFolder(path)) return;
+            int slash = path.LastIndexOf('/');
+            AssetDatabase.CreateFolder(path.Substring(0, slash), path.Substring(slash + 1));
+        }
+
+        static void AddToBuildSettings(string path)
+        {
+            var scenes = new List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
+            scenes.RemoveAll(s => s.path == path);
+            scenes.Insert(0, new EditorBuildSettingsScene(path, true));
+            EditorBuildSettings.scenes = scenes.ToArray();
+        }
+    }
+}

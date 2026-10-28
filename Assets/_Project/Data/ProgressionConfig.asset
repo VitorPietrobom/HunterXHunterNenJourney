@@ -1,0 +1,89 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd347c9bf7a29884f968344009d30dab, type: 3}
+  m_Name: ProgressionConfig
+  m_EditorClassIdentifier: HunterAwakening::HunterAwakening.ProgressionConfig
+  curves:
+  - attribute: 0
+    baseline: 10
+    learningRate: 2
+    scale: 100
+    exponent: 2
+  - attribute: 1
+    baseline: 10
+    learningRate: 2
+    scale: 100
+    exponent: 2
+  - attribute: 2
+    baseline: 10
+    learningRate: 2
+    scale: 100
+    exponent: 2
+  - attribute: 3
+    baseline: 10
+    learningRate: 2
+    scale: 100
+    exponent: 2
+  - attribute: 4
+    baseline: 10
+    learningRate: 2
+    scale: 100
+    exponent: 2
+  - attribute: 5
+    baseline: 10
+    learningRate: 2
+    scale: 100
+    exponent: 2
+  - attribute: 6
+    baseline: 10
+    learningRate: 1.6
+    scale: 100
+    exponent: 2
+  - attribute: 7
+    baseline: 10
+    learningRate: 1.6
+    scale: 100
+    exponent: 2
+  - attribute: 8
+    baseline: 10
+    learningRate: 1.6
+    scale: 100
+    exponent: 2
+  - attribute: 9
+    baseline: 10
+    learningRate: 1.6
+    scale: 100
+    exponent: 2
+  - attribute: 10
+    baseline: 10
+    learningRate: 1.6
+    scale: 100
+    exponent: 2
+  - attribute: 11
+    baseline: 10
+    learningRate: 1.6
+    scale: 100
+    exponent: 2
+  - attribute: 12
+    baseline: 10
+    learningRate: 1.6
+    scale: 100
+    exponent: 2
+  masteryRate: 4
+  masteryExponent: 1.5
+  drillMasteryMultiplier: 2.5
+  readinessGamma: 1.5
+  accumulatedFraction: 0.3
+  passiveRecoveryPerSecond: 0.6
+  restImmediatePerSecond: 18
+  restAccumulatedPerSecond: 2.5
+  lowQualityThreshold: 0.4

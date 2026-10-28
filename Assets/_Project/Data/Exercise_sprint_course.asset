@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a8755c55e2b61740b2bae9abd9800b9, type: 3}
+  m_Name: Exercise_sprint_course
+  m_EditorClassIdentifier: HunterAwakening::HunterAwakening.ExerciseDefinition
+  id: sprint_course
+  displayName: Sprint Course
+  category: 0
+  description: Run laps through the posts in order. Hold sprint the whole way.
+  targets:
+  - attribute: 1
+    specificity: 1
+  - attribute: 2
+    specificity: 0.7
+  hasMastery: 0
+  masteryTechnique: 0
+  fatigueCost: 24
+  minCompletionForAdaptation: 0.3
+  maxIntensityLevel: 6
+  requiresAura: 0
+  qualityHint: "you spent too long walking or standing \u2014 hold Shift and manage stamina."
+  lowIntensityHint: this lap count is comfortable for your Endurance now. Add laps with ].
+  metricLabel: average lap time (s)
+  lowerMetricIsBetter: 1

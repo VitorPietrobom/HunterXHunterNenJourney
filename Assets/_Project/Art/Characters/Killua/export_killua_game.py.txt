@@ -1,0 +1,82 @@
+"""
+Converts the Rigify Killua scene (a scratch copy) into a game-ready FBX:
+- keeps only the character meshes parented to 'rig'
+- re-parents every DEF- bone to its nearest DEF- ancestor (via the ORG- chain) so the deform bones form one hierarchy
+- exports deform bones only, in the REST pose (no animation): the skeleton's default pose must be neutral,
+  because Unity's Humanoid avatar retargets every clip relative to it
+Usage: blender -b --factory-startup --disable-autoexec <copy.blend> --python export_killua_game.py -- <out.fbx>
+"""
+import sys
+import bpy
+
+out_path = sys.argv[sys.argv.index("--") + 1]
+rig = bpy.data.objects["rig"]
+
+# 1. Remove everything that is not the character.
+keep = {rig} | {o for o in bpy.data.objects if o.parent == rig and o.type == 'MESH'}
+for ob in list(bpy.data.objects):
+    if ob not in keep:
+        bpy.data.objects.remove(ob, do_unlink=True)
+print("kept meshes:", sorted(o.name for o in keep if o.type == 'MESH'))
+
+# 2. Re-parent DEF bones into a single deform chain.
+bpy.context.view_layer.objects.active = rig
+for ob in bpy.context.view_layer.objects:
+    ob.select_set(ob == rig)
+bpy.ops.object.mode_set(mode='EDIT')
+ebones = rig.data.edit_bones
+
+def deform_parent(bone):
+    p = bone.parent
+    while p is not None:
+        if p.name.startswith("DEF-"):
+            return p
+        if p.name.startswith("ORG-"):
+            candidate = ebones.get("DEF-" + p.name[4:])
+            if candidate is not None and candidate != bone:
+                return candidate
+        p = p.parent
+    return None
+
+changes = []
+for b in ebones:
+    if not b.use_deform:
+        continue
+    target = deform_parent(b)
+    if b.parent != target:
+        changes.append((b, target))
+for b, target in changes:
+    b.use_connect = False
+    b.parent = target
+    print(f"reparent {b.name} -> {target.name if target else None}")
+bpy.ops.object.mode_set(mode='OBJECT')
+
+deform = [b for b in rig.data.bones if b.use_deform]
+roots = [b.name for b in deform if b.parent is None or not b.parent.use_deform]
+print(f"deform bones: {len(deform)}, deform roots: {roots}")
+
+# 3. Export the neutral rest pose (the file's animated stance would become the avatar's reference pose otherwise).
+rig.data.pose_position = 'REST'
+if rig.animation_data is not None:
+    rig.animation_data.action = None
+
+for ob in bpy.context.view_layer.objects:
+    ob.select_set(ob in keep)
+
+bpy.ops.export_scene.fbx(
+    filepath=out_path,
+    use_selection=True,
+    object_types={'ARMATURE', 'MESH'},
+    use_mesh_modifiers=True,
+    mesh_smooth_type='FACE',
+    use_armature_deform_only=True,
+    add_leaf_bones=False,
+    primary_bone_axis='Y',
+    secondary_bone_axis='X',
+    apply_scale_options='FBX_SCALE_ALL',
+    axis_forward='-Z',
+    axis_up='Y',
+    bake_anim=False,
+    path_mode='AUTO',
+)
+print("exported", out_path)
