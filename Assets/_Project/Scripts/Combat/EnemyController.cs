@@ -40,6 +40,11 @@ namespace HunterAwakening
         [Header("Visuals")]
         [SerializeField] Renderer bodyRenderer;
         [SerializeField] GameObject guardVisual;
+        [Tooltip("Coloured light cue for telegraph / opening / guard (works with textured models, unlike body tint).")]
+        [SerializeField] Light cueLight;
+        [Tooltip("Rotate the body flat on defeat. Off when an animated model plays its own knockdown.")]
+        [SerializeField] bool tipOverOnDefeat = true;
+        [SerializeField] Color guardColor = new Color(0.3f, 0.55f, 1f);
         [SerializeField] Color baseColor = new Color(0.75f, 0.3f, 0.3f);
         [SerializeField] Color telegraphColor = new Color(1f, 0.1f, 0.05f);
         [SerializeField] Color vulnerableColor = new Color(0.95f, 0.85f, 0.3f);
@@ -65,9 +70,17 @@ namespace HunterAwakening
         public bool IsTelegraphing => state == State.Telegraph;
         public bool IsVulnerable => state == State.Recovery || state == State.Stagger;
         public bool IsGuarding => state == State.Guard;
+        public bool IsStaggered => state == State.Stagger;
+        public bool IsRecovering => state == State.Recovery;
+        public bool IsDefeated => state == State.Defeated;
         public float TelegraphProgress => state == State.Telegraph ? 1f - stateTimer / telegraphTime : 0f;
+        public float TelegraphTime => telegraphTime;
+        public float RecoveryTime => recoveryTime;
+        /// <summary>Length of the current stagger, for timing the hit reaction.</summary>
+        public float StaggerDuration { get; private set; }
 
         public event Action Defeated;
+        public event Action Staggered;
         public event Action AttackLaunched;
         public event Action PatternRead;
 
@@ -189,7 +202,7 @@ namespace HunterAwakening
             if (health.IsDead)
             {
                 Enter(State.Defeated, 0f);
-                transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 90f);
+                if (tipOverOnDefeat) transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 90f);
                 Defeated?.Invoke();
             }
             return result;
@@ -227,6 +240,7 @@ namespace HunterAwakening
                 if (flashTimer <= 0f) RefreshColor();
                 else SetColor(Color.white);
             }
+            UpdateCue();
         }
 
         void TickChase(float dt)
@@ -261,6 +275,38 @@ namespace HunterAwakening
             stateTimer = duration;
             if (guardVisual != null) guardVisual.SetActive(next == State.Guard);
             RefreshColor();
+            if (next == State.Stagger)
+            {
+                StaggerDuration = duration;
+                Staggered?.Invoke();
+            }
+        }
+
+        void UpdateCue()
+        {
+            if (cueLight == null) return;
+            switch (state)
+            {
+                case State.Telegraph:
+                    cueLight.enabled = true;
+                    cueLight.color = telegraphColor;
+                    cueLight.intensity = Mathf.Lerp(1f, 8f, TelegraphProgress);
+                    break;
+                case State.Recovery:
+                case State.Stagger:
+                    cueLight.enabled = true;
+                    cueLight.color = vulnerableColor;
+                    cueLight.intensity = 3f;
+                    break;
+                case State.Guard:
+                    cueLight.enabled = true;
+                    cueLight.color = guardColor;
+                    cueLight.intensity = 3f;
+                    break;
+                default:
+                    cueLight.enabled = false;
+                    break;
+            }
         }
 
         void RefreshColor()

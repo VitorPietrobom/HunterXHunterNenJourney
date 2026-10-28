@@ -63,7 +63,7 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 
 ## ⭐ Combat
 
-- [ ] ⭐ **Animate the rival** (it is still a capsule). The Mixamo clips can be reused on any Humanoid model.
+- [x] ⚠️ **Animate the rival**: uses the Killua model and clips (run, heavy punch timed to the telegraph, block, hit reaction, knockdown) with a coloured cue light. *Two identical Killuas — consider a different model or colour variant for the rival; check fps with two 100k-vertex hair meshes.*
 - [ ] ⭐ Playtest and tune: attack timings, telegraph length, guard adaptation, rival HP/damage.
 - [ ] ◻️ More archetypes (GDD §8.4): bruiser, speed specialist, ranged aura user, technical rival.
 - [ ] ◻️ Hit feedback: hit-stop, impact VFX, sounds.

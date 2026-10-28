@@ -96,7 +96,8 @@ namespace HunterAwakening.EditorTools
             cc.radius = 0.4f;
             cc.center = Vector3.zero;
             cc.stepOffset = 0.3f;
-            var model = AttachPlayerModel(player, cc);
+            PrepareCharacterModel();
+            var model = AttachCharacterModel(player, cc);
             if (model != null)
             {
                 player.GetComponent<MeshRenderer>().enabled = false; // capsule stays as a fallback visual
@@ -274,12 +275,35 @@ namespace HunterAwakening.EditorTools
             ecc.height = 2f;
             ecc.radius = 0.45f;
             ecc.center = Vector3.zero;
-            Prim(PrimitiveType.Cube, "Visor", enemy.transform, new Vector3(0f, 0.5f, 0.35f), new Vector3(0.6f, 0.2f, 0.3f), m.Dark, false);
-            var guard = Prim(PrimitiveType.Cube, "Guard", enemy.transform, new Vector3(0f, 0.1f, 0.6f), new Vector3(1.2f, 1.4f, 0.12f), m.Guard, false);
-            guard.SetActive(false);
+
+            var cueLightGo = new GameObject("CueLight");
+            cueLightGo.transform.SetParent(enemy.transform, false);
+            cueLightGo.transform.localPosition = new Vector3(0f, 0.3f, 0.6f);
+            var cueLight = cueLightGo.AddComponent<Light>();
+            cueLight.type = LightType.Point;
+            cueLight.range = 3.5f;
+            cueLight.enabled = false;
+
             var controller = enemy.AddComponent<EnemyController>();
-            SetRef(controller, "bodyRenderer", enemy.GetComponent<Renderer>());
-            SetRef(controller, "guardVisual", guard);
+            SetRef(controller, "cueLight", cueLight);
+            var model = AttachCharacterModel(enemy, ecc);
+            if (model != null)
+            {
+                // Same Killua model and clips as the player; telegraphs read from the animation, cue light and labels.
+                enemy.GetComponent<MeshRenderer>().enabled = false;
+                var animation = enemy.AddComponent<EnemyAnimator>();
+                SetRef(animation, "animator", model.GetComponent<Animator>());
+                SetFloat(animation, "runClipSpeed", PlayerModelSetup.ClipSpeed("Run", 5.58f));
+                SetBool(controller, "tipOverOnDefeat", false);
+            }
+            else
+            {
+                Prim(PrimitiveType.Cube, "Visor", enemy.transform, new Vector3(0f, 0.5f, 0.35f), new Vector3(0.6f, 0.2f, 0.3f), m.Dark, false);
+                var guard = Prim(PrimitiveType.Cube, "Guard", enemy.transform, new Vector3(0f, 0.1f, 0.6f), new Vector3(1.2f, 1.4f, 0.12f), m.Guard, false);
+                guard.SetActive(false);
+                SetRef(controller, "bodyRenderer", enemy.GetComponent<Renderer>());
+                SetRef(controller, "guardVisual", guard);
+            }
 
             var post = Prim(PrimitiveType.Cube, "Arena Post", root.transform, new Vector3(-11f, 1f, 2.5f), new Vector3(0.3f, 2f, 0.3f), m.Accent);
             var entry = Empty("EntryPoint", root.transform, new Vector3(-11f, 1f, 0f), 90f, local: true);
@@ -297,24 +321,38 @@ namespace HunterAwakening.EditorTools
         /// <summary>Model height in metres (rest pose). Killua's native height is ~1.56 m; scaled to fill the 2 m controller.</summary>
         const float PlayerModelHeight = 1.9f;
 
-        static GameObject AttachPlayerModel(GameObject player, CharacterController controller)
+        // Set up once per build and shared by every character that uses the Killua model (player and rival).
+        static Avatar characterAvatar;
+        static RuntimeAnimatorController characterAnimator;
+
+        static void PrepareCharacterModel()
         {
-            if (AssetImporter.GetAtPath(PlayerModelSetup.ModelPath) == null) return null;
+            characterAvatar = null;
+            characterAnimator = null;
+            if (AssetImporter.GetAtPath(PlayerModelSetup.ModelPath) == null) return;
             // Always rebuild the avatar: a stale reference pose silently distorts every retargeted clip.
             var avatar = PlayerModelSetup.Configure();
-            if (avatar == null || !avatar.isHuman) return null;
+            if (avatar == null || !avatar.isHuman) return;
+            characterAvatar = avatar;
+            characterAnimator = CreatePlayerController();
+        }
+
+        /// <summary>Adds the animated Killua model under a CharacterController host. Returns null if the model is unavailable.</summary>
+        static GameObject AttachCharacterModel(GameObject host, CharacterController controller)
+        {
+            if (characterAvatar == null) return null;
 
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerModelSetup.ModelPath);
-            var model = Object.Instantiate(prefab, player.transform);
+            var model = Object.Instantiate(prefab, host.transform);
             model.name = "Model";
             model.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
 
             var animator = model.GetComponent<Animator>();
             if (animator == null) animator = model.AddComponent<Animator>();
-            animator.avatar = avatar;
+            animator.avatar = characterAvatar;
             animator.applyRootMotion = false;
             animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-            animator.runtimeAnimatorController = CreatePlayerController();
+            animator.runtimeAnimatorController = characterAnimator;
 
             var renderers = model.GetComponentsInChildren<Renderer>();
             if (renderers.Length == 0)
@@ -513,6 +551,15 @@ namespace HunterAwakening.EditorTools
             var p = Prop(so, field);
             if (p == null) return;
             p.floatValue = value;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static void SetBool(Object target, string field, bool value)
+        {
+            var so = new SerializedObject(target);
+            var p = Prop(so, field);
+            if (p == null) return;
+            p.boolValue = value;
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 
