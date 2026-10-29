@@ -65,7 +65,8 @@ namespace HunterAwakening
                 float masteryBonus = 1f + Mathf.Min(mastery, 100f) / 100f * 0.6f;
                 float heavyPenalty = Mathf.Lerp(1.2f, 0.6f, Mathf.Clamp01(relativeLoad));
                 if (mastery >= MasteryMilestones.LiftWideForm) heavyPenalty = Mathf.Lerp(heavyPenalty, 1f, 0.35f);
-                return 0.12f * masteryBonus * heavyPenalty * Mathf.Lerp(0.7f, 1f, Progression.Fatigue.Readiness);
+                float breakthrough = Progression.HasBreakthrough(Breakthroughs.PerfectForm) ? 1.2f : 1f;
+                return 0.12f * masteryBonus * heavyPenalty * breakthrough * Mathf.Lerp(0.7f, 1f, Progression.Fatigue.Readiness);
             }
         }
 

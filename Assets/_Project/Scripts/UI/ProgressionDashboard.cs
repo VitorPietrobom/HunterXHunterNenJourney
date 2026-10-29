@@ -37,6 +37,8 @@ namespace HunterAwakening
             DrawFatigue(p);
             GUILayout.Space(10);
             DrawMastery(p);
+            GUILayout.Space(10);
+            DrawBreakthroughs(session, p);
             GUILayout.EndScrollView();
 
             rightScroll = GUILayout.BeginScrollView(rightScroll, GUILayout.Width(columnWidth), GUILayout.Height(columnHeight));
@@ -84,6 +86,25 @@ namespace HunterAwakening
                 : f.AdaptationEfficiency < 0.8f ? "Accumulated fatigue is cutting adaptation. A longer rest clears it."
                 : "Fresh enough to train hard.";
             GUILayout.Label(advice, HudGui.Small);
+        }
+
+        static void DrawBreakthroughs(GameSession session, ProgressionService p)
+        {
+            GUILayout.Label("Breakthroughs", HudGui.Header);
+            var tracker = session.Player != null ? session.Player.GetComponent<BreakthroughTracker>() : null;
+            foreach (var b in Breakthroughs.All)
+            {
+                if (b.requiresAura && !p.IsAuraAwakened) continue;
+                if (p.HasBreakthrough(b.id))
+                {
+                    GUILayout.Label($"<color=#66dd77>✔ <b>{b.title}</b></color> — {b.reward}", HudGui.Wrap);
+                    continue;
+                }
+                string progress = tracker != null ? tracker.Progress(b.id) : "";
+                GUILayout.Label($"<b>{b.title}</b>{(progress.Length > 0 ? $"  <size=11>({progress})</size>" : "")}", HudGui.Label);
+                GUILayout.Label($"{b.challenge} Reward: {b.reward}", HudGui.Small);
+            }
+            if (!p.IsAuraAwakened) GUILayout.Label("More breakthroughs appear once your aura is awakened.", HudGui.Small);
         }
 
         static void DrawMastery(ProgressionService p)

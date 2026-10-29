@@ -207,6 +207,20 @@ namespace HunterAwakening.Tests
         }
 
         [Test]
+        public void Breakthroughs_UnlockOnce_AndSurviveSaveRoundTrip()
+        {
+            var p = new ProgressionService(config, PlayerState.CreateNew());
+            Assert.IsFalse(p.HasBreakthrough(Breakthroughs.IronBody));
+            Assert.IsTrue(p.UnlockBreakthrough(Breakthroughs.IronBody));
+            Assert.IsFalse(p.UnlockBreakthrough(Breakthroughs.IronBody), "second unlock is a no-op");
+            Assert.IsFalse(p.UnlockBreakthrough("not_a_breakthrough"));
+
+            var loaded = JsonUtility.FromJson<PlayerState>(JsonUtility.ToJson(p.State));
+            loaded.Sanitize();
+            Assert.IsTrue(new ProgressionService(config, loaded).HasBreakthrough(Breakthroughs.IronBody));
+        }
+
+        [Test]
         public void SparringRecords_ArePerTier_AndKeepPreTierSaves()
         {
             var state = PlayerState.CreateNew();

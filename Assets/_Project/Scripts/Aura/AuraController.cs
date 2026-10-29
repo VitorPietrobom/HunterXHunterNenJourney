@@ -51,9 +51,10 @@ namespace HunterAwakening
         /// <summary>Ren-enhanced attack wind-up and recovery (timings are divided by this).</summary>
         public float AttackSpeedMultiplier => RenActive ? StatEffects.RenAttackSpeedMultiplier(MaxOutput) : 1f;
         /// <summary>Extra parry window (seconds) while Gyo reads the opponent.</summary>
-        public float ParryWindowBonus => GyoActive ? StatEffects.GyoParryBonus(P.GetAttribute(AttributeId.Perception)) : 0f;
+        public float ParryWindowBonus => GyoActive ? StatEffects.GyoParryBonus(P.GetAttribute(AttributeId.Perception)) * GyoBreakthroughFactor : 0f;
         /// <summary>Extra dodge invulnerability (seconds) while Gyo reads the opponent.</summary>
-        public float DodgeWindowBonus => GyoActive ? StatEffects.GyoDodgeBonus(P.GetAttribute(AttributeId.Perception)) : 0f;
+        public float DodgeWindowBonus => GyoActive ? StatEffects.GyoDodgeBonus(P.GetAttribute(AttributeId.Perception)) * GyoBreakthroughFactor : 0f;
+        float GyoBreakthroughFactor => P.HasBreakthrough(Breakthroughs.ReadAndAnswer) ? 1.5f : 1f;
 
         double MaxOutput => P.GetAttribute(AttributeId.MaxOutput);
         double Control => P.GetAttribute(AttributeId.ControlPrecision);
@@ -98,7 +99,9 @@ namespace HunterAwakening
         public bool TryBreakRen()
         {
             if (!RenActive) return false;
-            if (Random.value >= StatEffects.RenBreakChance(MaxOutput, Control, P.GetMastery(TechniqueId.Ren))) return false;
+            float chance = StatEffects.RenBreakChance(MaxOutput, Control, P.GetMastery(TechniqueId.Ren))
+                           * (P.HasBreakthrough(Breakthroughs.UnbrokenRen) ? 0.7f : 1f);
+            if (Random.value >= chance) return false;
             RenActive = false;
             lockoutTimer = renLockout;
             vulnerableTimer = breakVulnerability;

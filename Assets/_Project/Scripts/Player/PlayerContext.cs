@@ -28,6 +28,7 @@ namespace HunterAwakening
 
         void Awake()
         {
+            if (GetComponent<BreakthroughTracker>() == null) gameObject.AddComponent<BreakthroughTracker>();
             Animation = GetComponent<PlayerAnimator>();
             Input = GetComponent<InputReader>();
             Motor = GetComponent<PlayerMotor>();
@@ -53,7 +54,9 @@ namespace HunterAwakening
         void RefreshDerivedStats()
         {
             var p = GameSession.Instance.Progression;
-            Health.SetMax(StatEffects.MaxHealth(p.GetAttribute(AttributeId.Durability), p.GetAttribute(AttributeId.Endurance)), true);
+            float maxHealth = StatEffects.MaxHealth(p.GetAttribute(AttributeId.Durability), p.GetAttribute(AttributeId.Endurance));
+            if (p.HasBreakthrough(Breakthroughs.IronBody)) maxHealth *= 1.1f;
+            Health.SetMax(maxHealth, true);
         }
     }
 }

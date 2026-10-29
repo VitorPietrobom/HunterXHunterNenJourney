@@ -39,6 +39,16 @@ namespace HunterAwakening
         public float GetMastery(TechniqueId id) => state.Mastery(id).value;
         public bool HasMastery(TechniqueId id, float threshold) => GetMastery(id) >= threshold;
         public bool KnowsInsight(string id) => state.knowledge.Contains(id);
+        public bool HasBreakthrough(string id) => state.knowledge.Contains("breakthrough:" + id);
+
+        /// <summary>Records a proven breakthrough (stored with the player's knowledge). Returns false if already known.</summary>
+        public bool UnlockBreakthrough(string id)
+        {
+            var def = Breakthroughs.Find(id);
+            if (def == null || !UnlockInsight("breakthrough:" + id, $"Breakthrough — {def.Value.title}", def.Value.reward, announce: false)) return false;
+            StateChanged?.Invoke(); // derived stats (e.g. max health) may change
+            return true;
+        }
 
         // ------------------------------------------------------------------ Training
 
@@ -49,6 +59,7 @@ namespace HunterAwakening
 
             var report = new TrainingReport
             {
+                exerciseId = def.id,
                 exerciseName = def.displayName,
                 outcome = o,
                 accumulatedFactor = Fatigue.AdaptationEfficiency
@@ -218,12 +229,12 @@ namespace HunterAwakening
             StateChanged?.Invoke();
         }
 
-        public bool UnlockInsight(string id, string title, string description)
+        public bool UnlockInsight(string id, string title, string description, bool announce = true)
         {
             if (state.knowledge.Contains(id)) return false;
             state.knowledge.Add(id);
             AddHistory($"Insight: {title}", description);
-            Notice?.Invoke($"Insight gained: {title}");
+            if (announce) Notice?.Invoke($"Insight gained: {title}");
             return true;
         }
 

@@ -51,7 +51,8 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
   - ~~Durability — only a Lift Rack side effect~~ → Sparring (every match now counts as training)
   - Efficiency, Recovery Rate — Efficiency only weakly via the Aura Mat; Recovery Rate none
 - [ ] ⭐ **Routine training** (GDD §5.1 hybrid model): configure exercise order, intensity, sets and rest, then perform them in sequence.
-- [ ] ⭐ **Breakthroughs** (GDD §5.5): Attempt → Master → Integrate milestones (e.g. "Ten during a full sprint") that unlock exercises/techniques. Currently only per-technique mastery milestones exist.
+- [x] ⚠️ **Breakthroughs** (GDD §5.5): six challenges proven in play, each with a permanent reward — Perfect Form, Iron Body, Ten in Motion, Unbroken Ren, Read and Answer, Shadow Strike. Live progress in the dashboard. *Ten in Motion needs ~Endurance 20 (sprint stamina must last 8 s).*
+- [ ] ◻️ More breakthroughs that unlock new exercises/techniques (e.g. Ken from Ten + Ren), and multi-stage Attempt → Master → Integrate.
 - [ ] ◻️ **Injury / strain** (GDD §9.3): from overload or failed reps; limits specific activities until rested.
 - [ ] ◻️ **Knowledge / insight** beyond aura awakening: exercise variants, enemy counters, technique conditions.
 - [ ] ◻️ Exercise variants that unlock at higher levels so late game isn't "same drill, longer" (GDD §6.3).

@@ -76,6 +76,9 @@ namespace HunterAwakening
 
         /// <summary>Raised when an unblocked hit lands on the player.</summary>
         public event Action HitTaken;
+        public event Action Parried;
+        public event Action PerfectDodged;
+        public event Action Ambushed;
         public bool IsBlocking { get; private set; }
         public bool IsDefeated => health.IsDead;
         public CombatTracker Tracker { get; set; }
@@ -189,7 +192,7 @@ namespace HunterAwakening
             float nen = aura.OutgoingMultiplier;
             bool ambush = aura.ZetsuActive;
             float damage = current.baseDamage * strength * technique * execution * nen * Mathf.Lerp(0.8f, 1f, P.Fatigue.Readiness)
-                           * (ambush ? StatEffects.ZetsuAmbushDamageMultiplier : 1f);
+                           * (ambush ? (P.HasBreakthrough(Breakthroughs.ShadowStrike) ? 2f : StatEffects.ZetsuAmbushDamageMultiplier) : 1f);
 
             double maxOutput = P.GetAttribute(AttributeId.MaxOutput);
             var hit = new HitInfo { damage = damage, technique = current.technique, heavy = current.heavy, ren = aura.RenActive, ambush = ambush };
@@ -198,6 +201,7 @@ namespace HunterAwakening
                 aura.EndZetsu("Ambush from Zetsu!");
                 P.ApplyMastery(TechniqueId.Zetsu, 1f);
                 HitFeedback.SlowMotion(0.35f, 0.35f);
+                Ambushed?.Invoke();
             }
             if (hit.ren)
             {
@@ -231,6 +235,7 @@ namespace HunterAwakening
                 tracker?.RegisterPerfectDodge();
                 GameSession.Instance.PushNotice("Perfect dodge!", 1f);
                 HitFeedback.SlowMotion(0.3f, 0.45f);
+                PerfectDodged?.Invoke();
                 return;
             }
 
@@ -250,6 +255,7 @@ namespace HunterAwakening
                     GameSession.Instance.PushNotice("Parry! The rival is open.", 1.5f);
                     HitFeedback.Impact(0.12f, 0.3f);
                     HitFeedback.SlowMotion(0.4f, 0.4f);
+                    Parried?.Invoke();
                     return;
                 }
                 blocked = true;

@@ -147,9 +147,12 @@ namespace HunterAwakening
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
 
+        public event Action<CombatReport> CombatReported;
+
         public void ReportCombat(CombatReport report)
         {
             LastCombatReport = report;
+            CombatReported?.Invoke(report);
             Progression.RecordCombat(report.tierId, report.won, report.duration, report.headline);
             PushNotice(report.headline + " — open the dashboard (Tab) for analysis.", 6f);
             Save();

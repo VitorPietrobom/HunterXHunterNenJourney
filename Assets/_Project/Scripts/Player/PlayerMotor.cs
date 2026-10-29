@@ -104,7 +104,8 @@ namespace HunterAwakening
             IsSprinting = wantsSprint && vitals.Stamina > 0f;
             if (IsSprinting)
             {
-                vitals.Drain(StatEffects.SprintStaminaCost(endurance) * dt);
+                float sprintCost = StatEffects.SprintStaminaCost(endurance) * (p.HasBreakthrough(Breakthroughs.TenInMotion) ? 0.8f : 1f);
+                vitals.Drain(sprintCost * dt);
                 p.AddExertion(0.25f * dt);
             }
 

@@ -41,6 +41,7 @@ namespace HunterAwakening
 
     public class TrainingReport
     {
+        public string exerciseId;
         public string exerciseName;
         public ExerciseOutcome outcome;
         public bool adapted;
