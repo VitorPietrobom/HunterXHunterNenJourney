@@ -27,6 +27,9 @@ namespace HunterAwakening
         [SerializeField] float telegraphTurnSpeed = 90f;
         [SerializeField] float damageReduction = 0.1f;
         [SerializeField] float radius = 0.5f;
+        [Tooltip("Ren output (aura/s) this opponent can face without hesitating.")]
+        [SerializeField] float presence = 16f;
+        [SerializeField] float ambushStagger = 1.2f;
 
         [Header("Guard & adaptation")]
         [SerializeField] float baseGuardChance = 0.2f;
@@ -53,6 +56,8 @@ namespace HunterAwakening
         CharacterController controller;
         Health health;
         PlayerCombat player;
+        AuraController playerAura;
+        bool intimidationAnnounced;
         Material material;
         State state = State.Inactive;
         float stateTimer;
@@ -78,8 +83,18 @@ namespace HunterAwakening
         public float RecoveryTime => recoveryTime;
         /// <summary>Length of the current stagger, for timing the hit reaction.</summary>
         public float StaggerDuration { get; private set; }
+        public float AttackDamage => attackDamage;
+        /// <summary>Seconds until the current wind-up connects (Gyo read-out), or -1.</summary>
+        public float TimeToImpact => state == State.Telegraph ? Mathf.Max(0f, stateTimer) : -1f;
+        /// <summary>Seconds until the rival may start its next attack (Gyo read-out).</summary>
+        public float AttackCooldownRemaining => Mathf.Max(0f, cooldown);
+        /// <summary>The player is hiding in Zetsu beyond detection range.</summary>
+        public bool LostTrack { get; private set; }
+        /// <summary>The player's Ren exceeds this opponent's presence: it hesitates and guards more.</summary>
+        public bool Intimidated { get; private set; }
 
         public event Action Defeated;
+        public event Action TelegraphStarted;
         public event Action Staggered;
         public event Action AttackLaunched;
         public event Action PatternRead;
@@ -100,10 +115,31 @@ namespace HunterAwakening
         void OnEnable() => All.Add(this);
         void OnDisable() => All.Remove(this);
 
+        /// <summary>Loads an opponent tier's fixed stats (only between matches).</summary>
+        public void ApplyTier(RivalTier tier)
+        {
+            if (tier == null) return;
+            displayName = tier.displayName;
+            maxHealth = tier.maxHealth;
+            moveSpeed = tier.moveSpeed;
+            attackDamage = tier.attackDamage;
+            telegraphTime = tier.telegraphTime;
+            recoveryTime = tier.recoveryTime;
+            attackCooldown = tier.attackCooldown;
+            baseGuardChance = tier.baseGuardChance;
+            damageReduction = tier.damageReduction;
+            presence = tier.presence;
+            health.SetMax(maxHealth, false);
+            health.RestoreFull();
+        }
+
         public void Activate(PlayerCombat target)
         {
             Deactivate();
             player = target;
+            playerAura = player.GetComponent<AuraController>();
+            intimidationAnnounced = false;
+            LostTrack = Intimidated = false;
             player.AttackStarted += OnPlayerAttackStarted;
             controller.enabled = false;
             transform.SetPositionAndRotation(spawnPosition, spawnRotation);
@@ -153,7 +189,7 @@ namespace HunterAwakening
             foreach (var t in recentPlayerAttacks)
                 if (t == spec.technique) repeats++;
             bool adapted = repeats >= adaptationThreshold;
-            float chance = baseGuardChance + (adapted ? adaptationGuardBonus : 0f);
+            float chance = baseGuardChance + (adapted ? adaptationGuardBonus : 0f) + (Intimidated ? 0.15f : 0f);
             if (UnityEngine.Random.value >= chance) return;
 
             FaceTowards(player.transform.position, 1000f);
@@ -168,7 +204,13 @@ namespace HunterAwakening
             float damage = hit.damage * (1f - damageReduction);
             var result = HitResult.Landed;
 
-            if (state == State.Guard)
+            if (hit.ambush)
+            {
+                // Unseen: no guard, no wind-up armour.
+                bool longAmbush = GameSession.Instance.Progression.HasMastery(TechniqueId.Zetsu, MasteryMilestones.ZetsuLongAmbush);
+                Enter(State.Stagger, ambushStagger * (longAmbush ? 1.5f : 1f));
+            }
+            else if (state == State.Guard)
             {
                 if (hit.heavy || hit.ren)
                 {
@@ -246,16 +288,37 @@ namespace HunterAwakening
         void TickChase(float dt)
         {
             if (player == null) return;
-            cooldown -= dt;
             Vector3 to = player.transform.position - transform.position;
             to.y = 0f;
             float distance = to.magnitude;
-            FaceTowards(player.transform.position, 540f * dt);
 
+            // Zetsu: a player with sealed aura is lost beyond detection range; the rival holds and searches.
+            var p = GameSession.Instance.Progression;
+            LostTrack = playerAura != null && playerAura.ZetsuActive
+                        && distance > StatEffects.ZetsuDetectionRange(p.GetMastery(TechniqueId.Zetsu));
+            if (LostTrack)
+            {
+                cooldown -= dt;
+                return;
+            }
+
+            // Ren stronger than this opponent's presence: it hesitates (slower to commit) and guards more.
+            Intimidated = playerAura != null && playerAura.RenActive && StatEffects.RenOutput(p.GetAttribute(AttributeId.MaxOutput)) > presence;
+            if (Intimidated && !intimidationAnnounced)
+            {
+                intimidationAnnounced = true;
+                GameSession.Instance.PushNotice($"The {displayName} hesitates before your Ren.", 2.5f);
+            }
+            cooldown -= dt * (Intimidated ? 0.4f : 1f);
+
+            FaceTowards(player.transform.position, 540f * dt);
             if (distance > attackRange * 0.85f)
                 controller.Move(to.normalized * (moveSpeed * dt));
             if (distance <= attackRange && cooldown <= 0f && !player.IsDefeated)
+            {
                 Enter(State.Telegraph, telegraphTime);
+                TelegraphStarted?.Invoke();
+            }
         }
 
         void ResolveAttack()

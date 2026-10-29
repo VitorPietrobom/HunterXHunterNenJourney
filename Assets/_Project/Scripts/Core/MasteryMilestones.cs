@@ -15,6 +15,8 @@ namespace HunterAwakening
         public const float FootworkCheapDodge = 30f;
         public const float TenHalfDrain = 30f;
         public const float RenLowLeak = 30f;
+        public const float ZetsuLongAmbush = 30f;
+        public const float GyoCheap = 30f;
 
         public readonly struct Milestone
         {
@@ -33,6 +35,8 @@ namespace HunterAwakening
             { TechniqueId.Footwork, new[] { new Milestone(FootworkCheapDodge, "Dodging costs 30% less stamina") } },
             { TechniqueId.Ten, new[] { new Milestone(TenHalfDrain, "Ten aura drain halved") } },
             { TechniqueId.Ren, new[] { new Milestone(RenLowLeak, "Less aura leakage while holding Ren") } },
+            { TechniqueId.Zetsu, new[] { new Milestone(ZetsuLongAmbush, "Ambushes from Zetsu stagger 50% longer") } },
+            { TechniqueId.Gyo, new[] { new Milestone(GyoCheap, "Gyo drains a third less aura") } },
         };
 
         public static IReadOnlyList<Milestone> For(TechniqueId id) =>

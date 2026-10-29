@@ -51,8 +51,26 @@ namespace HunterAwakening
         /// <summary>Damage-taken multiplier while Ren is held (stronger than Ten, much more expensive).</summary>
         public static float RenDamageTakenMultiplier(double maxOutput) => Mathf.Clamp(0.6f - 0.07f * G(maxOutput), 0.3f, 0.6f);
 
+        // Ren floods the body with aura: faster movement and attacks, paid for with extra drain while moving.
+        public static float RenSpeedMultiplier(double maxOutput) => Mathf.Min(1.15f + 0.08f * G(maxOutput), 1.35f);
+        public static float RenAttackSpeedMultiplier(double maxOutput) => Mathf.Min(1.1f + 0.06f * G(maxOutput), 1.25f);
+        public static float RenMovingDrainMultiplier(double sustained) => 1f + 0.5f / (1f + 0.6f * G(sustained));
+
         public static float RenStagger(double maxOutput) => Mathf.Min(0.35f + 0.1f * G(maxOutput), 0.9f);
         public static float RenKnockback(double maxOutput) => Mathf.Min(2.5f + 1.5f * G(maxOutput), 8f);
+
+        // Zetsu: aura shut off. Hidden and recovering fast, but defenceless.
+        public const float ZetsuDamageTakenMultiplier = 1.5f;
+        public const float ZetsuAuraRecoveryMultiplier = 2.5f;
+        public const float ZetsuAmbushDamageMultiplier = 1.6f;
+        /// <summary>Distance at which a rival notices a player hiding in Zetsu.</summary>
+        public static float ZetsuDetectionRange(float zetsuMastery) => Mathf.Lerp(6f, 3f, Mathf.Clamp01(zetsuMastery / 100f));
+
+        // Gyo: aura gathered in the eyes. Reads attacks; the body is a little less protected meanwhile.
+        public const float GyoDamageTakenMultiplier = 1.15f;
+        public static float GyoDrain(float gyoMastery) => gyoMastery >= MasteryMilestones.GyoCheap ? 2f : 3f;
+        public static float GyoParryBonus(double perception) => Mathf.Min(0.04f + 0.03f * G(perception), 0.15f);
+        public static float GyoDodgeBonus(double perception) => Mathf.Min(0.02f + 0.02f * G(perception), 0.08f);
 
         /// <summary>Highest output (0..1 of the Ren Circle meter) the player can hold before Ren destabilises.</summary>
         public static float RenControlCeiling(double control) => Mathf.Clamp(0.7f + 0.08f * G(control), 0.7f, 0.97f);
@@ -75,11 +93,11 @@ namespace HunterAwakening
             AttributeId.Mobility => $"Jump height {JumpHeight(v):0.00} m",
             AttributeId.Durability => $"Damage taken −{DamageReduction(v) * 100:0}%",
             AttributeId.AuraCapacity => $"Aura reserve {AuraCapacity(v):0}",
-            AttributeId.MaxOutput => $"Ren output {RenOutput(v):0}/s · Ren guard −{(1f - RenDamageTakenMultiplier(v)) * 100:0}% damage · knockback {RenKnockback(v):0.0}",
-            AttributeId.SustainedOutput => $"Ren strain {RenFatiguePerSecond(v):0.00} fatigue/s",
+            AttributeId.MaxOutput => $"Ren output {RenOutput(v):0}/s · guard −{(1f - RenDamageTakenMultiplier(v)) * 100:0}% damage · speed +{(RenSpeedMultiplier(v) - 1f) * 100:0}% · attacks +{(RenAttackSpeedMultiplier(v) - 1f) * 100:0}%",
+            AttributeId.SustainedOutput => $"Ren strain {RenFatiguePerSecond(v):0.00} fatigue/s · moving drain ×{RenMovingDrainMultiplier(v):0.00}",
             AttributeId.ControlPrecision => $"Stable band ±{TenBand(v) * 100:0}% · Ren ceiling {RenControlCeiling(v) * 100:0}% (keep ahead of Max Output)",
             AttributeId.Efficiency => $"Efficiency ×{Efficiency(v):0.00}",
-            AttributeId.Perception => "No gameplay effect yet (future: aura cues)",
+            AttributeId.Perception => $"With Gyo: parry window +{GyoParryBonus(v) * 1000:0} ms · dodge window +{GyoDodgeBonus(v) * 1000:0} ms",
             AttributeId.RecoveryRate => $"Aura recovery {AuraRecovery(v):0.0}/s",
             _ => ""
         };

@@ -30,6 +30,10 @@ namespace HunterAwakening
         public SaveService Saves { get; private set; }
         public PlayerContext Player => player;
         public bool DashboardOpen { get; set; }
+        /// <summary>Pause menu open: time is stopped and gameplay input ignored.</summary>
+        public bool Paused { get; set; }
+        /// <summary>True while any full-screen UI owns the mouse and keyboard.</summary>
+        public bool InputBlocked => DashboardOpen || Paused;
         public bool ShowHelp { get; set; } = true;
         public bool IsResting { get; set; }
         public TrainingReport LastTrainingReport { get; private set; }
@@ -59,6 +63,7 @@ namespace HunterAwakening
 
             Progression = new ProgressionService(config, state);
             Progression.ExerciseApplied += OnExerciseApplied;
+            if (GetComponent<HitFeedback>() == null) gameObject.AddComponent<HitFeedback>();
             Progression.Notice += text => PushNotice(text, 5f);
         }
 
@@ -82,7 +87,8 @@ namespace HunterAwakening
             var input = player != null ? player.Input : null;
             if (input != null)
             {
-                if (input.DashboardPressed) DashboardOpen = !DashboardOpen;
+                if (input.PausePressed) SetPaused(!Paused);
+                if (input.DashboardPressed && !Paused) DashboardOpen = !DashboardOpen;
                 if (input.HelpPressed) ShowHelp = !ShowHelp;
                 if (input.SavePressed && Save()) PushNotice("Game saved.");
                 if (input.LoadPressed) ReloadFromDisk();
@@ -97,6 +103,13 @@ namespace HunterAwakening
         }
 
         void OnApplicationQuit() => Save();
+
+        public void SetPaused(bool paused)
+        {
+            Paused = paused;
+            if (paused) DashboardOpen = false;
+            Time.timeScale = paused ? 0f : 1f; // HitFeedback takes timeScale back over once unpaused
+        }
 
         public bool Save()
         {
@@ -137,7 +150,7 @@ namespace HunterAwakening
         public void ReportCombat(CombatReport report)
         {
             LastCombatReport = report;
-            Progression.RecordCombat(report.won, report.duration, report.headline);
+            Progression.RecordCombat(report.tierId, report.won, report.duration, report.headline);
             PushNotice(report.headline + " — open the dashboard (Tab) for analysis.", 6f);
             Save();
         }

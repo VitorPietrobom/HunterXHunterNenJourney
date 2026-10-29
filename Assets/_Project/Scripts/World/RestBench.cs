@@ -63,7 +63,7 @@ namespace HunterAwakening
 
         void OnGUI()
         {
-            if (!resting || Session.DashboardOpen) return;
+            if (!resting || Session.InputBlocked) return;
             var f = Progression.Fatigue;
             HudGui.DrillPanel("Resting",
                 $"Immediate fatigue {f.Immediate:0} (readiness {HudGui.Pct(f.Readiness)})\n" +

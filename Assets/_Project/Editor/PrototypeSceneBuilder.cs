@@ -80,6 +80,20 @@ namespace HunterAwakening.EditorTools
                 qualityHint: "output kept dropping below the target or crossing the ceiling — hold steady and re-push right after each pressure wave.",
                 lowHint: "this output target is easy for you now. Raise it with ].",
                 metric: "stability (%)", lowerIsBetter: false);
+            var sparringDef = Exercise("sparring", "Sparring", ExerciseCategory.Combat,
+                "A real fight is training: absorbing pressure builds Durability, avoiding it builds Coordination.",
+                new[] { (AttributeId.Durability, 0.7f), (AttributeId.Coordination, 0.5f), (AttributeId.Endurance, 0.3f) }, null,
+                fatigue: 12f, maxLevel: 1, requiresAura: false,
+                qualityHint: "you were hit often and landed little — read the wind-up, dodge or parry, then punish the opening.",
+                lowHint: "this opponent no longer pushes you. Pick a stronger one at the arena post ([ / ]).",
+                metric: "", lowerIsBetter: false);
+            var gyoDef = Exercise("gyo_reading", "Gyo Reading", ExerciseCategory.Aura,
+                "Reading wind-ups with Gyo trains Perception.",
+                new[] { (AttributeId.Perception, 1f), (AttributeId.ControlPrecision, 0.2f) }, TechniqueId.Gyo,
+                fatigue: 5f, maxLevel: 1, requiresAura: true,
+                qualityHint: "you read the attacks but still got hit — act on what Gyo shows you (dodge or parry on the countdown).",
+                lowHint: "this opponent's wind-ups are slow for your eyes now. Face a faster opponent.",
+                metric: "", lowerIsBetter: false);
 
             var m = new Materials();
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
@@ -146,7 +160,7 @@ namespace HunterAwakening.EditorTools
             BuildSprintCourse(m, sprintDef);
             BuildPrecisionPads(m, precisionDef);
             BuildAuraArea(m, tenDef, renDef);
-            BuildArena(m, context);
+            BuildArena(m, context, sparringDef, gyoDef);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AddToBuildSettings(ScenePath);
@@ -258,7 +272,7 @@ namespace HunterAwakening.EditorTools
             SetRef(drill, "standPoint", stand.transform);
         }
 
-        static void BuildArena(Materials m, PlayerContext player)
+        static void BuildArena(Materials m, PlayerContext player, ExerciseDefinition sparringDef, ExerciseDefinition gyoDef)
         {
             var root = Empty("Sparring Arena", null, new Vector3(24f, 0f, -4f), 0f);
             Prim(PrimitiveType.Cube, "Floor", root.transform, new Vector3(0f, 0.01f, 0f), new Vector3(18f, 0.02f, 18f), m.ArenaFloor, false);
@@ -295,6 +309,7 @@ namespace HunterAwakening.EditorTools
                 SetRef(animation, "animator", model.GetComponent<Animator>());
                 SetFloat(animation, "runClipSpeed", PlayerModelSetup.ClipSpeed("Run", 5.58f));
                 SetBool(controller, "tipOverOnDefeat", false);
+                ApplyRivalColours(model);
             }
             else
             {
@@ -313,6 +328,8 @@ namespace HunterAwakening.EditorTools
             SetRef(arena, "enemy", controller);
             SetRef(arena, "arenaCenter", root.transform);
             SetRef(arena, "entryPoint", entry.transform);
+            SetRef(arena, "sparringExercise", sparringDef);
+            SetRef(arena, "gyoReadingExercise", gyoDef);
         }
 
         // ------------------------------------------------------------------ Player model
@@ -399,6 +416,51 @@ namespace HunterAwakening.EditorTools
             EditorUtility.SetDirty(controller);
             AssetDatabase.SaveAssets();
             return controller;
+        }
+
+        const string RivalMaterialDir = Root + "/Art/Characters/Killua/RivalMaterials";
+
+        // "Shadow" variant so the rival reads as a different fighter: renderer name → base colour.
+        static readonly (string renderer, Color color)[] RivalColours =
+        {
+            ("OutShirt", new Color(0.55f, 0.08f, 0.1f)),
+            ("Inshirt", new Color(0.07f, 0.07f, 0.09f)),
+            ("Pants", new Color(0.12f, 0.1f, 0.11f)),
+            ("Belt", new Color(0.3f, 0.05f, 0.05f)),
+            ("UpperHair", new Color(0.32f, 0.33f, 0.38f)),
+            ("UnderHair", new Color(0.25f, 0.26f, 0.3f)),
+            ("Shoe", new Color(0.1f, 0.1f, 0.1f)),
+            ("Shoe002", new Color(0.5f, 0.08f, 0.1f)),
+            ("Show001", new Color(0.1f, 0.1f, 0.1f)),
+        };
+
+        /// <summary>Gives the rival tinted copies of the model's materials (saved as assets; the player's are untouched).</summary>
+        static void ApplyRivalColours(GameObject model)
+        {
+            EnsureFolder(RivalMaterialDir);
+            foreach (var r in model.GetComponentsInChildren<Renderer>(true))
+            {
+                int index = System.Array.FindIndex(RivalColours, c => c.renderer == r.name);
+                if (index < 0) continue;
+                var source = r.sharedMaterials;
+                var tinted = new Material[source.Length];
+                for (int i = 0; i < source.Length; i++)
+                {
+                    if (source[i] == null) continue;
+                    string path = $"{RivalMaterialDir}/Rival_{r.name}_{i}.mat";
+                    var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+                    if (mat == null)
+                    {
+                        mat = new Material(source[i]);
+                        AssetDatabase.CreateAsset(mat, path);
+                    }
+                    mat.CopyPropertiesFromMaterial(source[i]);
+                    mat.color = RivalColours[index].color;
+                    EditorUtility.SetDirty(mat);
+                    tinted[i] = mat;
+                }
+                r.sharedMaterials = tinted;
+            }
         }
 
         static Bounds ModelBounds(Renderer[] renderers)

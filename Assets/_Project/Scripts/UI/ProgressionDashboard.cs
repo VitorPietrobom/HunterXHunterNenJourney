@@ -91,7 +91,8 @@ namespace HunterAwakening
             GUILayout.Label("Technique mastery", HudGui.Header);
             foreach (TechniqueId id in Enum.GetValues(typeof(TechniqueId)))
             {
-                if ((id == TechniqueId.Ten || id == TechniqueId.Ren) && !p.IsAuraAwakened) continue;
+                bool auraTechnique = id == TechniqueId.Ten || id == TechniqueId.Ren || id == TechniqueId.Zetsu || id == TechniqueId.Gyo;
+                if (auraTechnique && !p.IsAuraAwakened) continue;
                 float m = p.GetMastery(id);
                 GUILayout.Label($"<b>{AttributeInfo.Label(id)}</b>  {m:0.0} ({MasteryMilestones.Tier(m)})", HudGui.Label);
                 GUILayout.Label($"Next: {MasteryMilestones.Next(id, m)}", HudGui.Small);

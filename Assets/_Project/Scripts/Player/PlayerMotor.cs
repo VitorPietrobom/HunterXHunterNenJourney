@@ -24,6 +24,7 @@ namespace HunterAwakening
         InputReader input;
         PlayerVitals vitals;
         PlayerCombat combat;
+        AuraController aura;
         float verticalVelocity;
         float dodgeTimer;
         float dodgeCooldownTimer;
@@ -62,6 +63,7 @@ namespace HunterAwakening
                 var p = GameSession.Instance.Progression;
                 float bonus = StatEffects.DodgeWindowBonus(p.GetAttribute(AttributeId.Coordination));
                 if (p.HasMastery(TechniqueId.Dodge, MasteryMilestones.DodgeLongIFrames)) bonus += 0.06f;
+                if (aura != null) bonus += aura.DodgeWindowBonus;
                 return iFrameEnd + bonus;
             }
         }
@@ -72,6 +74,7 @@ namespace HunterAwakening
             input = GetComponent<InputReader>();
             vitals = GetComponent<PlayerVitals>();
             combat = GetComponent<PlayerCombat>();
+            aura = GetComponent<AuraController>();
             if (cameraTransform == null && Camera.main != null) cameraTransform = Camera.main.transform;
         }
 
@@ -86,7 +89,7 @@ namespace HunterAwakening
             var session = GameSession.Instance;
             var p = session.Progression;
             float dt = Time.deltaTime;
-            bool blocked = Locked || session.DashboardOpen || (combat != null && combat.IsDefeated);
+            bool blocked = Locked || session.InputBlocked || (combat != null && combat.IsDefeated);
 
             Vector2 raw = blocked ? Vector2.zero : input.Move;
             Vector3 direction = CameraRelative(raw);
@@ -94,7 +97,7 @@ namespace HunterAwakening
 
             double speedStat = p.GetAttribute(AttributeId.Speed);
             double endurance = p.GetAttribute(AttributeId.Endurance);
-            float performance = p.Fatigue.PerformanceMultiplier;
+            float performance = p.Fatigue.PerformanceMultiplier * (aura != null ? aura.SpeedMultiplier : 1f);
 
             bool wantsSprint = input.SprintHeld && IsMoving && !blocked && !vitals.IsExhausted
                                && (combat == null || (!combat.IsBlocking && !combat.IsAttacking));

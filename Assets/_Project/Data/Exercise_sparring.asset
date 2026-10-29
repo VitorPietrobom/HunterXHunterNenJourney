@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a8755c55e2b61740b2bae9abd9800b9, type: 3}
+  m_Name: Exercise_sparring
+  m_EditorClassIdentifier: HunterAwakening::HunterAwakening.ExerciseDefinition
+  id: sparring
+  displayName: Sparring
+  category: 2
+  description: 'A real fight is training: absorbing pressure builds Durability, avoiding it builds Coordination.'
+  targets:
+  - attribute: 5
+    specificity: 0.7
+  - attribute: 3
+    specificity: 0.5
+  - attribute: 2
+    specificity: 0.3
+  hasMastery: 0
+  masteryTechnique: 0
+  fatigueCost: 12
+  minCompletionForAdaptation: 0.3
+  maxIntensityLevel: 1
+  requiresAura: 0
+  qualityHint: "you were hit often and landed little \u2014 read the wind-up, dodge or parry, then punish the opening."
+  lowIntensityHint: this opponent no longer pushes you. Pick a stronger one at the arena post ([ / ]).
+  metricLabel: 
+  lowerMetricIsBetter: 0

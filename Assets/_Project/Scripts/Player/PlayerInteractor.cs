@@ -14,7 +14,7 @@ namespace HunterAwakening
         void Update()
         {
             Focus = FindFocus();
-            if (Focus == null || GameSession.Instance.DashboardOpen || context.Combat.IsDefeated) return;
+            if (Focus == null || GameSession.Instance.InputBlocked || context.Combat.IsDefeated) return;
 
             var input = context.Input;
             if (input.InteractPressed) Focus.Interact(context);

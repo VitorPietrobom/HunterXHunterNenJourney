@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a8755c55e2b61740b2bae9abd9800b9, type: 3}
+  m_Name: Exercise_gyo_reading
+  m_EditorClassIdentifier: HunterAwakening::HunterAwakening.ExerciseDefinition
+  id: gyo_reading
+  displayName: Gyo Reading
+  category: 1
+  description: Reading wind-ups with Gyo trains Perception.
+  targets:
+  - attribute: 11
+    specificity: 1
+  - attribute: 9
+    specificity: 0.2
+  hasMastery: 1
+  masteryTechnique: 9
+  fatigueCost: 5
+  minCompletionForAdaptation: 0.3
+  maxIntensityLevel: 1
+  requiresAura: 1
+  qualityHint: "you read the attacks but still got hit \u2014 act on what Gyo shows you (dodge or parry on the countdown)."
+  lowIntensityHint: this opponent's wind-ups are slow for your eyes now. Face a faster opponent.
+  metricLabel: 
+  lowerMetricIsBetter: 0

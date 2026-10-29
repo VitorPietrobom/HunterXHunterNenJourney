@@ -2,13 +2,20 @@ using UnityEngine;
 
 namespace HunterAwakening
 {
-    /// <summary>Starts and ends repeatable sparring matches and hands the combat report to the session.</summary>
+    /// <summary>
+    /// Starts and ends repeatable sparring matches against a chosen opponent tier, hands the combat report to the
+    /// session, and submits the fight itself as training (sparring, plus Gyo reading when Gyo was used).
+    /// </summary>
     public class ArenaController : Interactable
     {
         [SerializeField] EnemyController enemy;
         [SerializeField] Transform arenaCenter;
         [SerializeField] Transform entryPoint;
         [SerializeField] float arenaRadius = 13f;
+        [SerializeField] RivalTier[] tiers = RivalTier.Defaults();
+        [SerializeField] int tierIndex = 1;
+        [SerializeField] ExerciseDefinition sparringExercise;
+        [SerializeField] ExerciseDefinition gyoReadingExercise;
 
         PlayerContext player;
         CombatTracker tracker;
@@ -16,10 +23,32 @@ namespace HunterAwakening
 
         public bool MatchActive => matchActive;
         public EnemyController Enemy => enemy;
+        RivalTier Tier => tiers != null && tiers.Length > 0 ? tiers[Mathf.Clamp(tierIndex, 0, tiers.Length - 1)] : null;
 
-        public override string GetPrompt() => matchActive
-            ? "Sparring in progress — leave the arena to forfeit"
-            : "[E] Start a sparring match (restores your health)";
+        void Start()
+        {
+            if (Tier != null) enemy.ApplyTier(Tier);
+        }
+
+        public override string GetPrompt()
+        {
+            if (matchActive) return "Sparring in progress — leave the arena to forfeit";
+            var tier = Tier;
+            if (tier == null) return "[E] Start a sparring match (restores your health)";
+            float best = Progression.BestSparringTime(tier.id);
+            string record = best > 0f ? $" · best {best:0.0}s" : "";
+            return $"[E] Spar vs {tier.displayName} (HP {tier.maxHealth:0}, hits {tier.attackDamage:0}{record})   [ / ] change opponent";
+        }
+
+        public override void Adjust(int delta)
+        {
+            if (matchActive || tiers == null || tiers.Length == 0) return;
+            int next = Mathf.Clamp(tierIndex + delta, 0, tiers.Length - 1);
+            if (next == tierIndex) return;
+            tierIndex = next;
+            enemy.ApplyTier(Tier);
+            Session.PushNotice($"Opponent: {Tier.displayName}", 2f);
+        }
 
         public override void Interact(PlayerContext ctx)
         {
@@ -31,7 +60,9 @@ namespace HunterAwakening
         void Begin(PlayerContext ctx)
         {
             player = ctx;
-            tracker = new CombatTracker();
+            var tier = Tier;
+            if (tier != null) enemy.ApplyTier(tier);
+            tracker = new CombatTracker(tier);
             matchActive = true;
 
             player.Health.RestoreFull();
@@ -43,14 +74,22 @@ namespace HunterAwakening
             enemy.Activate(player.Combat);
             enemy.Defeated += OnEnemyDefeated;
             enemy.AttackLaunched += tracker.RegisterEnemyAttack;
+            enemy.TelegraphStarted += OnTelegraphStarted;
             enemy.PatternRead += OnPatternRead;
-            Session.PushNotice("Fight! Watch for the red wind-up.", 3f);
+            Session.PushNotice($"Fight! {enemy.DisplayName} — watch for the red wind-up.", 3f);
+        }
+
+        void OnTelegraphStarted()
+        {
+            if (!player.Aura.GyoActive) return;
+            tracker.RegisterGyoRead();
+            Progression.ApplyMastery(TechniqueId.Gyo, 0.5f);
         }
 
         void OnPatternRead()
         {
             tracker.RegisterPatternRead();
-            Session.PushNotice("The rival is reading your repeated attacks.", 2f);
+            Session.PushNotice($"The {enemy.DisplayName} is reading your repeated attacks.", 2f);
         }
 
         void OnEnemyDefeated() => End(true);
@@ -78,9 +117,13 @@ namespace HunterAwakening
             player.Combat.Tracker = null;
             enemy.Defeated -= OnEnemyDefeated;
             enemy.AttackLaunched -= tracker.RegisterEnemyAttack;
+            enemy.TelegraphStarted -= OnTelegraphStarted;
             enemy.PatternRead -= OnPatternRead;
 
             var report = tracker.Finish(won, enemy.Health, Progression);
+            var sparring = tracker.SparringOutcome(won, Progression);
+            var gyo = tracker.GyoOutcome(Progression);
+
             enemy.Deactivate();
             if (!won)
             {
@@ -92,9 +135,16 @@ namespace HunterAwakening
                     Progression.AddExertion(10f);
                 }
             }
-            else Invoke(nameof(ResetEnemy), 3f);
+            else
+            {
+                HitFeedback.SlowMotion(0.3f, 0.9f);
+                Invoke(nameof(ResetEnemy), 3f);
+            }
 
             Session.ReportCombat(report);
+            // The fight was training too (GDD §5.2: losing doesn't mean no progress).
+            if (sparringExercise != null) Progression.ApplyExercise(sparringExercise, sparring);
+            if (gyo != null && gyoReadingExercise != null && Progression.IsAuraAwakened) Progression.ApplyExercise(gyoReadingExercise, gyo);
             tracker = null;
             player = null;
         }

@@ -12,6 +12,8 @@ namespace HunterAwakening
         public bool ren;
         public float renStagger;
         public float knockback;
+        /// <summary>Struck from Zetsu, unseen: ignores guard and wind-up armour and staggers.</summary>
+        public bool ambush;
     }
 
     public enum HitResult { None, Landed, Guarded, GuardBroken }
@@ -109,7 +111,7 @@ namespace HunterAwakening
 
         void Update()
         {
-            bool blocked = GameSession.Instance.DashboardOpen || motor.Locked || IsDefeated;
+            bool blocked = GameSession.Instance.InputBlocked || motor.Locked || IsDefeated;
 
             if (!blocked && input.BlockPressed) blockPressedTime = Time.time;
             IsBlocking = !blocked && input.BlockHeld && CurrentPhase == Phase.None && !motor.IsDodging && !vitals.IsExhausted;
@@ -136,7 +138,7 @@ namespace HunterAwakening
 
             current = spec;
             CurrentPhase = Phase.Startup;
-            float performance = P.Fatigue.PerformanceMultiplier;
+            float performance = P.Fatigue.PerformanceMultiplier * aura.AttackSpeedMultiplier;
             StartupDuration = spec.startup / performance;
             // Mastery shortens recovery; fatigue lengthens it.
             float masteryCut = Mathf.Lerp(1f, 0.6f, Mathf.Clamp01(P.GetMastery(spec.technique) / 100f));
@@ -185,10 +187,18 @@ namespace HunterAwakening
             float technique = 1f + 0.35f * Mathf.Clamp01(P.GetMastery(current.technique) / 100f);
             float execution = Mathf.Lerp(0.85f, 1.1f, quality);
             float nen = aura.OutgoingMultiplier;
-            float damage = current.baseDamage * strength * technique * execution * nen * Mathf.Lerp(0.8f, 1f, P.Fatigue.Readiness);
+            bool ambush = aura.ZetsuActive;
+            float damage = current.baseDamage * strength * technique * execution * nen * Mathf.Lerp(0.8f, 1f, P.Fatigue.Readiness)
+                           * (ambush ? StatEffects.ZetsuAmbushDamageMultiplier : 1f);
 
             double maxOutput = P.GetAttribute(AttributeId.MaxOutput);
-            var hit = new HitInfo { damage = damage, technique = current.technique, heavy = current.heavy, ren = aura.RenActive };
+            var hit = new HitInfo { damage = damage, technique = current.technique, heavy = current.heavy, ren = aura.RenActive, ambush = ambush };
+            if (ambush)
+            {
+                aura.EndZetsu("Ambush from Zetsu!");
+                P.ApplyMastery(TechniqueId.Zetsu, 1f);
+                HitFeedback.SlowMotion(0.35f, 0.35f);
+            }
             if (hit.ren)
             {
                 hit.renStagger = StatEffects.RenStagger(maxOutput) * (current.heavy ? 1.6f : 1f);
@@ -199,7 +209,14 @@ namespace HunterAwakening
 
             P.ApplyMastery(current.technique, quality);
             if (aura.RenActive && result != HitResult.Guarded) P.ApplyMastery(TechniqueId.Ren, 0.7f);
-            Tracker?.RegisterPlayerHit(result, dealt, current.heavy, aura.RenActive, punish);
+            Tracker?.RegisterPlayerHit(result, dealt, current.heavy, aura.RenActive, punish, hit.ambush);
+
+            switch (result)
+            {
+                case HitResult.GuardBroken: HitFeedback.Impact(0.1f, 0.45f); break;
+                case HitResult.Guarded: HitFeedback.Impact(0.02f, 0.1f); break;
+                default: HitFeedback.Impact((current.heavy ? 0.08f : 0.04f) + (hit.ren ? 0.03f : 0f), (current.heavy ? 0.3f : 0.15f) + (hit.ren ? 0.15f : 0f)); break;
+            }
         }
 
         /// <summary>Called by an enemy whose attack connects this frame.</summary>
@@ -213,6 +230,7 @@ namespace HunterAwakening
                 P.ApplyMastery(TechniqueId.Dodge, 1f);
                 tracker?.RegisterPerfectDodge();
                 GameSession.Instance.PushNotice("Perfect dodge!", 1f);
+                HitFeedback.SlowMotion(0.3f, 0.45f);
                 return;
             }
 
@@ -223,13 +241,15 @@ namespace HunterAwakening
 
             if (IsBlocking && facing)
             {
-                float window = parryWindow + (P.HasMastery(TechniqueId.Block, MasteryMilestones.BlockWideParry) ? 0.1f : 0f);
+                float window = parryWindow + (P.HasMastery(TechniqueId.Block, MasteryMilestones.BlockWideParry) ? 0.1f : 0f) + aura.ParryWindowBonus;
                 if (Time.time - blockPressedTime <= window)
                 {
                     attacker.Stagger(1.1f);
                     P.ApplyMastery(TechniqueId.Block, 1f);
                     tracker?.RegisterParry();
                     GameSession.Instance.PushNotice("Parry! The rival is open.", 1.5f);
+                    HitFeedback.Impact(0.12f, 0.3f);
+                    HitFeedback.SlowMotion(0.4f, 0.4f);
                     return;
                 }
                 blocked = true;
@@ -261,6 +281,7 @@ namespace HunterAwakening
             P.AddExertion(1.5f);
             tracker?.RegisterPlayerDamaged(dealt, blocked, tenWasActive || renWasActive);
             if (!blocked && dealt > 0f) HitTaken?.Invoke();
+            HitFeedback.Impact(blocked ? 0.03f : 0.06f, blocked ? 0.2f : 0.5f);
         }
 
         EnemyController NearestEnemy(float radius)

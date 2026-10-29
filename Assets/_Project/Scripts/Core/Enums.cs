@@ -28,7 +28,10 @@ namespace HunterAwakening
         Lift,
         Footwork,
         Ten,
-        Ren
+        Ren,
+        // Appended (saves store technique ids as ints).
+        Zetsu,
+        Gyo
     }
 
     public enum ExerciseCategory

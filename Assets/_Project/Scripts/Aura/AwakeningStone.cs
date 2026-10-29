@@ -79,7 +79,7 @@ namespace HunterAwakening
 
         void OnGUI()
         {
-            if (!channeling || Session.DashboardOpen) return;
+            if (!channeling || Session.InputBlocked) return;
             var meter = HudGui.DrillPanel("Meditating", "Still the body. Feel the energy leaking from your skin...", 20f);
             HudGui.Bar(meter, progress / channelSeconds, new Color(0.7f, 0.5f, 1f), HudGui.Pct(progress / channelSeconds));
         }

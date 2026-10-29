@@ -98,6 +98,25 @@ namespace HunterAwakening.Tests
         }
 
         [Test]
+        public void Ren_BodyEnhancementIsCapped()
+        {
+            Assert.Greater(StatEffects.RenSpeedMultiplier(10), 1f);
+            Assert.LessOrEqual(StatEffects.RenSpeedMultiplier(1e9), 1.35f);
+            Assert.LessOrEqual(StatEffects.RenAttackSpeedMultiplier(1e9), 1.25f);
+            Assert.Less(StatEffects.RenMovingDrainMultiplier(200), StatEffects.RenMovingDrainMultiplier(10), "Sustained Output cuts moving drain");
+        }
+
+        [Test]
+        public void ZetsuAndGyo_ScaleWithMasteryAndPerception()
+        {
+            Assert.Less(StatEffects.ZetsuDetectionRange(100), StatEffects.ZetsuDetectionRange(0), "mastery lets you hide closer");
+            Assert.Greater(StatEffects.GyoParryBonus(60), StatEffects.GyoParryBonus(10));
+            Assert.LessOrEqual(StatEffects.GyoParryBonus(1e9), 0.15f);
+            Assert.LessOrEqual(StatEffects.GyoDodgeBonus(1e9), 0.08f);
+            Assert.Less(StatEffects.GyoDrain(100), StatEffects.GyoDrain(0));
+        }
+
+        [Test]
         public void Ren_DefenceIsStrongerThanTenAndBounded()
         {
             Assert.Less(StatEffects.RenDamageTakenMultiplier(10), StatEffects.TenDamageMultiplier(10, 0));
@@ -185,6 +204,20 @@ namespace HunterAwakening.Tests
             p.ApplyExercise(definition, sloppy);
             double second = p.GetAttribute(AttributeId.Strength) - before;
             Assert.Less(second, first);
+        }
+
+        [Test]
+        public void SparringRecords_ArePerTier_AndKeepPreTierSaves()
+        {
+            var state = PlayerState.CreateNew();
+            state.Record("sparring_rival").bestMetric = 50f; // a pre-tier save's best win
+            var p = new ProgressionService(config, state);
+            Assert.AreEqual(50f, p.BestSparringTime("rival"));
+            p.RecordCombat("veteran", true, 80f, "win");
+            p.RecordCombat("veteran", true, 90f, "slower win");
+            Assert.AreEqual(80f, p.BestSparringTime("veteran"));
+            Assert.AreEqual(0f, p.BestSparringTime("elite"));
+            Assert.AreEqual(50f, p.BestSparringTime("rival"));
         }
 
         [Test]

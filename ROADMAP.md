@@ -37,7 +37,8 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 - [x] ⚠️ **Output vs. control**: leakage and the chance a hit breaks Ren grow when Max Output outpaces Control Precision; a break locks Ren for 1.5 s and opens a 1 s window of +30% damage taken. Combat report flags Ren breaks.
 - [x] ⚠️ **Ren hits feel heavier**: even light Ren hits break guard; Ren hits stagger (a Ren heavy cuts through the rival's wind-up armour) and knock back.
 - [ ] 🔥 **Playtest and tune** the numbers above (break chance, lockout, knockback, drill aura cost).
-- [ ] ◻️ **Intimidation**: a clearly stronger Ren makes weaker enemies hesitate and guard more (GDD §8.3 power gaps).
+- [x] ⚠️ **Ren body enhancement**: +15–35% move speed, +10–25% attack speed and a longer dodge while held; moving with Ren drains extra aura (Sustained Output reduces it). Ren is suppressed in physical drills.
+- [x] ⚠️ **Intimidation**: when your Ren output exceeds an opponent's *presence*, it hesitates (slower to attack) and guards more. At starting stats only the Rookie is intimidated.
 - [ ] ◻️ Advanced applications after Ren feels right: **Ken** (Ten + Ren stance), **Ko**, **Ryu**.
 
 ---
@@ -46,8 +47,8 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 
 - [ ] ⭐ **Every attribute needs a training source.** Today:
   - ~~Max Output — none~~ → Ren Circle
-  - Perception — none, and no gameplay effect yet (future: aura cues / Gyo)
-  - Durability — only a 0.2 side effect of the Lift Rack
+  - ~~Perception — none~~ → Gyo Reading (reading wind-ups with Gyo in sparring); gameplay effect: wider parry/dodge windows under Gyo
+  - ~~Durability — only a Lift Rack side effect~~ → Sparring (every match now counts as training)
   - Efficiency, Recovery Rate — Efficiency only weakly via the Aura Mat; Recovery Rate none
 - [ ] ⭐ **Routine training** (GDD §5.1 hybrid model): configure exercise order, intensity, sets and rest, then perform them in sequence.
 - [ ] ⭐ **Breakthroughs** (GDD §5.5): Attempt → Master → Integrate milestones (e.g. "Ten during a full sprint") that unlock exercises/techniques. Currently only per-technique mastery milestones exist.
@@ -57,16 +58,21 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 
 ## ⭐ Aura / Nen
 
-- [ ] ⭐ **Zetsu** and **Gyo** as techniques with their own drills (GDD §5.2).
+- [x] ⚠️ **Zetsu** (Z): aura sealed — hidden from opponents beyond detection range, fast aura/fatigue recovery, ambush strike from hiding; takes ×1.5 damage. Mastery from ambushes and hiding near an active opponent.
+- [x] ⚠️ **Gyo** (hold G): reads attack timing (impact countdown, next-attack timer), wider parry/dodge windows scaled by Perception; body slightly less protected. Trains Perception via Gyo Reading.
+- [ ] ◻️ Dedicated Zetsu and Gyo drills (today they train only in sparring).
 - [ ] ◻️ **Affinity discovery** test (GDD §7.1).
 - [ ] ◻️ **Hatsu builder**: data-driven core effect + activation condition + cost + counterplay + enforceable vow (GDD §7.4). Start with one tested ability (e.g. *Binding Current*).
 
 ## ⭐ Combat
 
-- [x] ⚠️ **Animate the rival**: uses the Killua model and clips (run, heavy punch timed to the telegraph, block, hit reaction, knockdown) with a coloured cue light. *Two identical Killuas — consider a different model or colour variant for the rival; check fps with two 100k-vertex hair meshes.*
+- [x] ⚠️ **Animate the rival**: Killua model and clips (run, heavy punch timed to the telegraph, block, hit reaction, knockdown), coloured cue light, and a crimson "shadow" colour scheme so it reads as a different fighter. *Check fps with two 100k-vertex hair meshes.*
+- [x] ⚠️ **Opponent tiers** at the arena post ([ / ]): Rookie, Sparring Rival, Veteran Hunter, Elite Nen User — fixed stats, best time recorded per tier.
+- [x] ⚠️ **Sparring is training**: each match submits a Sparring exercise (Durability, Coordination, Endurance; quality from offense/defense; fights under ~12 s give nothing) and, if Gyo was used, Gyo Reading (Perception).
 - [ ] ⭐ Playtest and tune: attack timings, telegraph length, guard adaptation, rival HP/damage.
 - [ ] ◻️ More archetypes (GDD §8.4): bruiser, speed specialist, ranged aura user, technical rival.
-- [ ] ◻️ Hit feedback: hit-stop, impact VFX, sounds.
+- [x] ⚠️ **Hit feedback**: hit-stop, camera shake, slow motion on parries/perfect dodges/ambushes/knockouts (toggleable).
+- [ ] ◻️ Impact VFX and sounds.
 
 ## Player model & animation
 
@@ -80,7 +86,8 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 
 - [ ] ◻️ Replace the IMGUI placeholder HUD/dashboard with uGUI or UI Toolkit.
 - [ ] ◻️ Routine-builder UI (with routine training).
-- [ ] ◻️ Pause/settings menu (sensitivity, key rebinding, VSync toggle).
+- [x] ⚠️ **Pause/settings menu** (Esc): sensitivity, invert Y, fps cap, VSync, FPS counter, camera shake and hit-stop toggles (saved in PlayerPrefs).
+- [ ] ◻️ Key rebinding.
 
 ## World (only after the core loop is proven — GDD §15)
 

@@ -75,6 +75,7 @@ namespace HunterAwakening
             player = ctx;
             running = true;
             elapsed = 0f;
+            if (definition.category == ExerciseCategory.Physical) player.Aura.SuppressRen = true;
             readinessSum = 0f;
             readinessSamples = 0;
             OnBegin();
@@ -106,6 +107,7 @@ namespace HunterAwakening
             if (reason != null) outcome.endReason = reason;
             else if (aborted && outcome.endReason == null) outcome.endReason = "Session ended early.";
             OnEnd();
+            player.Aura.SuppressRen = false;
             Progression.ApplyExercise(definition, outcome);
             player = null;
         }
@@ -116,13 +118,14 @@ namespace HunterAwakening
             {
                 running = false;
                 OnEnd();
+                if (player != null) player.Aura.SuppressRen = false;
             }
             base.OnDisable();
         }
 
         void OnGUI()
         {
-            if (!running || Session == null || Session.DashboardOpen) return;
+            if (!running || Session == null || Session.InputBlocked) return;
             var meter = HudGui.DrillPanel($"{displayName} — {IntensityLabel}", StatusText + "\n<size=11>[E] end early</size>", MeterHeight);
             if (MeterHeight > 0f) DrawMeter(meter);
         }

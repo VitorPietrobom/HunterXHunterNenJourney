@@ -227,16 +227,20 @@ namespace HunterAwakening
             return true;
         }
 
-        public void RecordCombat(bool won, float duration, string summary)
+        public void RecordCombat(string tierId, bool won, float duration, string summary)
         {
-            var record = state.Record("sparring_rival");
+            var record = state.Record(SparringRecordId(tierId));
             record.sessions++;
             if (won && (record.bestMetric <= 0f || duration < record.bestMetric)) record.bestMetric = duration;
             AddHistory(won ? "Sparring: victory" : "Sparring: defeat", summary);
             StateChanged?.Invoke();
         }
 
-        public float BestSparringTime => state.Record("sparring_rival").bestMetric;
+        /// <summary>Fastest win against an opponent tier, or 0 if never beaten.</summary>
+        public float BestSparringTime(string tierId) => state.Record(SparringRecordId(tierId)).bestMetric;
+
+        // The default tier keeps the pre-tier record id so existing saves keep their best time.
+        static string SparringRecordId(string tierId) => "sparring_" + (string.IsNullOrEmpty(tierId) ? "rival" : tierId);
 
         public void CapturePosition(Vector3 position, float yaw)
         {
