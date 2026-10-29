@@ -27,6 +27,7 @@ MonoBehaviour:
   minCompletionForAdaptation: 0.3
   maxIntensityLevel: 10
   requiresAura: 0
+  stressedArea: 1
   qualityHint: press when the needle is inside the green zone; heavier loads narrow it.
   lowIntensityHint: Strength progress reduced because the selected load is now too easy. Raise it with ].
   metricLabel: heaviest completed set (kg)

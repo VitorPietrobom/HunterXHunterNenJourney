@@ -27,6 +27,7 @@ MonoBehaviour:
   minCompletionForAdaptation: 0.3
   maxIntensityLevel: 6
   requiresAura: 0
+  stressedArea: 2
   qualityHint: "you spent too long walking or standing \u2014 hold Shift and manage stamina."
   lowIntensityHint: this lap count is comfortable for your Endurance now. Add laps with ].
   metricLabel: average lap time (s)

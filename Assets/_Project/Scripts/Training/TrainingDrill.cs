@@ -39,7 +39,20 @@ namespace HunterAwakening
             if (running) return "[E] End session early";
             if (definition != null && definition.requiresAura && !Progression.IsAuraAwakened)
                 return $"{displayName} — requires aura awakening (Meditation Stone)";
-            return $"[E] Start {displayName} · {IntensityLabel}   [ / ] change intensity";
+            return $"[E] Start {displayName} · {IntensityLabel}   [ / ] change intensity\n<size=11>{Description()}</size>";
+        }
+
+        /// <summary>One line for the prompt: what the drill is and what it trains.</summary>
+        string Description()
+        {
+            if (definition == null) return "";
+            var trains = new System.Text.StringBuilder();
+            foreach (var t in definition.targets)
+            {
+                if (trains.Length > 0) trains.Append(", ");
+                trains.Append(AttributeInfo.Label(t.attribute));
+            }
+            return $"{definition.description} Trains {trains}.";
         }
 
         public override void Adjust(int delta)

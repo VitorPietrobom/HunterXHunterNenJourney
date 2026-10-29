@@ -39,15 +39,31 @@ namespace HunterAwakening
             Interactor = GetComponent<PlayerInteractor>();
         }
 
+        const float RegenDelay = 4f;
+        const float RegenPerSecond = 6f;
+        float sinceDamaged = RegenDelay;
+
         void Start()
         {
             GameSession.Instance.Progression.StateChanged += RefreshDerivedStats;
+            Health.Damaged += OnDamaged;
             RefreshDerivedStats();
             Health.RestoreFull();
         }
 
+        void OnDamaged(float amount) => sinceDamaged = 0f;
+
+        void Update()
+        {
+            // Out of a match, health trickles back after a short breather (the bench is still faster and clears fatigue).
+            sinceDamaged += Time.deltaTime;
+            if (Combat.Tracker == null && sinceDamaged >= RegenDelay && !Health.IsDead)
+                Health.Heal(RegenPerSecond * Time.deltaTime);
+        }
+
         void OnDestroy()
         {
+            if (Health != null) Health.Damaged -= OnDamaged;
             if (GameSession.Instance != null) GameSession.Instance.Progression.StateChanged -= RefreshDerivedStats;
         }
 

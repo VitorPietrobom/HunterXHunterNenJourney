@@ -168,7 +168,11 @@ namespace HunterAwakening
             bool blocked = session.InputBlocked || motor.Locked;
             CheckAdvancedUnlocks();
 
-            if (!blocked && input.ZetsuPressed)
+            // Physical drills measure the body: Zetsu's fast fatigue recovery would inflate them, like Ren would.
+            if (SuppressRen && ZetsuActive) EndZetsu("Zetsu released — physical drills train the body, not the aura.");
+            if (!blocked && input.ZetsuPressed && SuppressRen)
+                session.PushNotice("Zetsu is unavailable during physical drills.", 2f);
+            else if (!blocked && input.ZetsuPressed)
             {
                 ZetsuActive = !ZetsuActive;
                 if (ZetsuActive) TenActive = false;

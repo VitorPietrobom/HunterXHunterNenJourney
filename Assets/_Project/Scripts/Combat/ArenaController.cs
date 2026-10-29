@@ -25,8 +25,12 @@ namespace HunterAwakening
         public EnemyController Enemy => enemy;
         RivalTier Tier => tiers != null && tiers.Length > 0 ? tiers[Mathf.Clamp(tierIndex, 0, tiers.Length - 1)] : null;
 
+        const string TierPref = "ha.arenaTier";
+
         void Start()
         {
+            // Remember the last opponent chosen (a convenience, so it lives in PlayerPrefs rather than the save).
+            if (tiers != null && tiers.Length > 0) tierIndex = Mathf.Clamp(PlayerPrefs.GetInt(TierPref, tierIndex), 0, tiers.Length - 1);
             if (Tier != null) enemy.ApplyTier(Tier);
         }
 
@@ -37,7 +41,8 @@ namespace HunterAwakening
             if (tier == null) return "[E] Start a sparring match (restores your health)";
             float best = Progression.BestSparringTime(tier.id);
             string record = best > 0f ? $" · best {best:0.0}s" : "";
-            return $"[E] Spar vs {tier.displayName} (HP {tier.maxHealth:0}, hits {tier.attackDamage:0}{record})   [ / ] change opponent";
+            return $"[E] Spar vs {tier.displayName} (HP {tier.maxHealth:0}, hits {tier.attackDamage:0}{record})   [ / ] change opponent\n" +
+                   "<size=11>Fights train Durability, Coordination and Endurance; reading wind-ups with Gyo trains Perception.</size>";
         }
 
         public override void Adjust(int delta)
@@ -46,6 +51,7 @@ namespace HunterAwakening
             int next = Mathf.Clamp(tierIndex + delta, 0, tiers.Length - 1);
             if (next == tierIndex) return;
             tierIndex = next;
+            PlayerPrefs.SetInt(TierPref, tierIndex);
             enemy.ApplyTier(Tier);
             Session.PushNotice($"Opponent: {Tier.displayName}", 2f);
         }

@@ -16,6 +16,7 @@ namespace HunterAwakening
         [SerializeField] float[] windows = { 6f, 5f, 4f, 3.2f, 2.6f };
 
         int marked = -1;
+        int ignoredStone = -1;
         int done;
         int hits;
         float qualitySum;
@@ -43,15 +44,30 @@ namespace HunterAwakening
             done = hits = 0;
             qualitySum = 0f;
             gyoTime = 0f;
-            marked = -1;
+            marked = ignoredStone = -1;
             lastResult = "Hold Gyo (G) to see which stone carries the aura mark, then touch it.";
             NextRound();
         }
 
         void NextRound()
         {
-            int next;
-            do next = Random.Range(0, stones.Length); while (next == marked);
+            // The player is usually still beside the stone they just touched: never mark it (a free point) and
+            // don't count it as a wrong touch until they step away.
+            ignoredStone = StoneInReach(-1);
+            int candidates = 0;
+            for (int i = 0; i < stones.Length; i++)
+                if (i != marked && i != ignoredStone) candidates++;
+            int pick = Random.Range(0, Mathf.Max(1, candidates));
+            int next = marked < 0 ? 0 : marked;
+            for (int i = 0; i < stones.Length && candidates > 0; i++)
+            {
+                if (i == marked || i == ignoredStone) continue;
+                if (pick-- == 0)
+                {
+                    next = i;
+                    break;
+                }
+            }
             marked = next;
             windowTimer = Window;
             if (markLight != null) markLight.transform.position = stones[marked].position + Vector3.up * 1.4f;
@@ -76,12 +92,10 @@ namespace HunterAwakening
                 return;
             }
             // Touching a wrong stone costs the round.
-            for (int i = 0; i < stones.Length; i++)
+            if (ignoredStone >= 0 && !InReach(ignoredStone)) ignoredStone = -1;
+            int touched = StoneInReach(marked);
+            if (touched >= 0 && touched != ignoredStone)
             {
-                if (i == marked) continue;
-                Vector3 d = stones[i].position - player.transform.position;
-                d.y = 0f;
-                if (d.magnitude > reachRadius) continue;
                 lastResult = "Wrong stone — read it with Gyo first.";
                 Advance();
                 return;
@@ -91,6 +105,21 @@ namespace HunterAwakening
                 lastResult = "Too slow — the mark faded.";
                 Advance();
             }
+        }
+
+        bool InReach(int i)
+        {
+            Vector3 d = stones[i].position - player.transform.position;
+            d.y = 0f;
+            return d.magnitude <= reachRadius;
+        }
+
+        /// <summary>Index of a stone within reach (other than <paramref name="except"/>), or -1.</summary>
+        int StoneInReach(int except)
+        {
+            for (int i = 0; i < stones.Length; i++)
+                if (i != except && InReach(i)) return i;
+            return -1;
         }
 
         void Advance()

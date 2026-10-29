@@ -59,7 +59,14 @@ namespace HunterAwakening
             GUILayout.Label($"Sound effects {sfxVolume * 100f:0}%", HudGui.Label);
             sfxVolume = GUILayout.HorizontalSlider(sfxVolume, 0f, 1f);
 
-            GameSettings.Set(sensitivity, invertY, GameSettings.FrameRateOptions[fpsIndex], vsync, showFps, shake, hitStop, sfxVolume);
+            // OnGUI runs several times a frame: only persist when something actually changed.
+            int fpsCap = GameSettings.FrameRateOptions[fpsIndex];
+            bool changed = !Mathf.Approximately(sensitivity, GameSettings.MouseSensitivity) || invertY != GameSettings.InvertY
+                           || fpsCap != GameSettings.FrameRateCap || vsync != GameSettings.VSync || showFps != GameSettings.ShowFps
+                           || shake != GameSettings.CameraShake || hitStop != GameSettings.HitStop
+                           || !Mathf.Approximately(sfxVolume, GameSettings.SfxVolume);
+            if (changed) GameSettings.Set(sensitivity, invertY, fpsCap, vsync, showFps, shake, hitStop, sfxVolume);
+            if (Application.isEditor) GUILayout.Label("<size=11>In the Editor, Quit just saves — stop Play mode to exit.</size>", HudGui.Small);
 
             GUILayout.FlexibleSpace();
             GUILayout.BeginHorizontal();

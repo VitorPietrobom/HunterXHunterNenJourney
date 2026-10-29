@@ -31,6 +31,7 @@ MonoBehaviour:
   minCompletionForAdaptation: 0.3
   maxIntensityLevel: 5
   requiresAura: 1
+  stressedArea: 0
   qualityHint: "aura control was unstable \u2014 make small corrections instead of holding the key."
   lowIntensityHint: this level no longer challenges your control. Raise it with ].
   metricLabel: stability (%)

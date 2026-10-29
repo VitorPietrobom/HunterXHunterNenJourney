@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a8755c55e2b61740b2bae9abd9800b9, type: 3}
+  m_Name: Exercise_gyo_stones
+  m_EditorClassIdentifier: HunterAwakening::HunterAwakening.ExerciseDefinition
+  id: gyo_stones
+  displayName: Gyo Stones
+  category: 1
+  description: "Find the stone carrying a hidden aura mark \u2014 visible only through Gyo."
+  targets:
+  - attribute: 11
+    specificity: 1
+  - attribute: 9
+    specificity: 0.3
+  hasMastery: 1
+  masteryTechnique: 9
+  fatigueCost: 10
+  minCompletionForAdaptation: 0.3
+  maxIntensityLevel: 5
+  requiresAura: 1
+  stressedArea: 0
+  qualityHint: "marks were missed or found late \u2014 keep Gyo up while you move, and head for the mark as soon as you see it."
+  lowIntensityHint: the window is generous for your Perception now. Shorten it with ].
+  metricLabel: marks found (%)
+  lowerMetricIsBetter: 0

@@ -10,7 +10,7 @@ namespace HunterAwakening
     {
         [SerializeField] PlayerContext player;
         [SerializeField] Camera worldCamera;
-        [SerializeField] float labelRange = 28f;
+        [SerializeField] float labelRange = 60f;
 
         readonly ProgressionDashboard dashboard = new ProgressionDashboard();
         readonly PauseMenu pauseMenu = new PauseMenu();
@@ -104,6 +104,37 @@ namespace HunterAwakening
             string strain = p.GetStrain(BodyArea.Upper) > 0.5f || p.GetStrain(BodyArea.Lower) > 0.5f
                 ? $" · <color=#ff8866>strain: upper {p.GetStrain(BodyArea.Upper):0} / legs {p.GetStrain(BodyArea.Lower):0}</color>" : "";
             GUI.Label(new Rect(x, y, w, 40), $"<size=11>Training sessions {p.TrainingSessions}{strain} · Tab: dashboard · F1: controls</size>", HudGui.Small);
+
+            // Guided next step, so a new player always knows what to aim for.
+            y += 40f;
+            var goalRect = new Rect(x - 6, y, w + 12, 46f);
+            HudGui.Panel(goalRect);
+            GUI.Label(new Rect(x, y + 4, w, 40f), $"<color=#ffdd66><b>Next goal</b></color>  <size=11>{NextGoal(p)}</size>", HudGui.Wrap);
+        }
+
+        static string NextGoal(ProgressionService p)
+        {
+            if (!p.IsAuraAwakened)
+                return p.TrainingSessions < 3
+                    ? $"Condition your body: complete training sessions ({p.TrainingSessions}/3) at the Lift Rack, Sprint Course or Precision Pads."
+                    : "Meditate at the Meditation Stone to awaken your aura.";
+            if (p.BestSparringTime("rival") <= 0f)
+                return "Beat the Sparring Rival: dodge or parry the red wind-up, then punish the yellow opening.";
+            bool ken = p.KnowsInsight(AuraController.KenInsight);
+            if (!ken)
+                return $"Fight with Ten (T) and Ren (R) up — Ken unlocks at 25 mastery each (Ten {p.GetMastery(TechniqueId.Ten):0}, Ren {p.GetMastery(TechniqueId.Ren):0}).";
+            if (p.BestSparringTime("veteran") <= 0f)
+                return "Beat the Veteran Hunter — choose it at the arena post with ] .";
+            if (!p.KnowsInsight(AuraController.KoInsight))
+                return $"Learn Ko: Ren mastery 40 and Max Output 18 from the Ren Circle (Ren {p.GetMastery(TechniqueId.Ren):0}, Max Output {p.GetAttribute(AttributeId.MaxOutput):0.0}).";
+            if (p.BestSparringTime("elite") <= 0f)
+                return "Defeat the Elite Nen User.";
+            int left = 0;
+            foreach (var b in Breakthroughs.All)
+                if (!p.HasBreakthrough(b.id)) left++;
+            return left > 0
+                ? $"Hunt the remaining breakthroughs (Tab → Breakthroughs): {left} left."
+                : "You've conquered the sandbox. Keep pushing — no attribute has a cap.";
         }
 
         void DrawWorldLabels()
@@ -152,7 +183,8 @@ namespace HunterAwakening
             if (focus == null) return;
             string prompt = focus.GetPrompt();
             float w = Mathf.Min(720f, Screen.width - 40f);
-            var r = new Rect((Screen.width - w) * 0.5f, Screen.height - 90f, w, 32f);
+            float h = prompt.Contains("\n") ? 50f : 32f;
+            var r = new Rect((Screen.width - w) * 0.5f, Screen.height - 72f - h, w, h);
             HudGui.Panel(r);
             GUI.Label(r, prompt, HudGui.Center);
         }

@@ -52,7 +52,12 @@ namespace HunterAwakening
         void Update()
         {
             var session = GameSession.Instance;
-            if (session != null && session.Paused) return; // the pause menu owns timeScale while open
+            // Pause menu and dashboard stop the world (no getting hit while reading the dashboard).
+            if (session != null && session.InputBlocked)
+            {
+                Time.timeScale = 0f;
+                return;
+            }
             float now = Time.unscaledTime;
             float scale = now < slowUntil ? slowScale : 1f;
             if (now < freezeUntil) scale = FreezeScale;

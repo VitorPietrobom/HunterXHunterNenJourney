@@ -29,6 +29,7 @@ MonoBehaviour:
   minCompletionForAdaptation: 0.3
   maxIntensityLevel: 5
   requiresAura: 1
+  stressedArea: 0
   qualityHint: "output kept dropping below the target or crossing the ceiling \u2014 hold steady and re-push right after each pressure wave."
   lowIntensityHint: this output target is easy for you now. Raise it with ].
   metricLabel: stability (%)

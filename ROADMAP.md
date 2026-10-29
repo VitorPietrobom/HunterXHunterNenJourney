@@ -39,7 +39,9 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 - [ ] 🔥 **Playtest and tune** the numbers above (break chance, lockout, knockback, drill aura cost).
 - [x] ⚠️ **Ren body enhancement**: +15–35% move speed, +10–25% attack speed and a longer dodge while held; moving with Ren drains extra aura (Sustained Output reduces it). Ren is suppressed in physical drills.
 - [x] ⚠️ **Intimidation**: when your Ren output exceeds an opponent's *presence*, it hesitates (slower to attack) and guards more. At starting stats only the Rookie is intimidated.
-- [ ] ◻️ Advanced applications after Ren feels right: **Ken** (Ten + Ren stance), **Ko**, **Ryu**.
+- [x] ⚠️ **Ken** (Ten + Ren together, unlocks at Ten and Ren mastery 25): rooted stance, damage taken ~0.45×, Ren half as likely to break, combined drain.
+- [x] ⚠️ **Ko** (F with Ren up, unlocks at Ren mastery 40 + Max Output 18): 2.5–4× damage, guaranteed guard break and launch, costs 35% of the reserve, ×1.8 damage taken while thrown.
+- [ ] ◻️ **Ryu** (shifting aura between offence and defence).
 
 ---
 
@@ -53,7 +55,7 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 - [ ] ⭐ **Routine training** (GDD §5.1 hybrid model): configure exercise order, intensity, sets and rest, then perform them in sequence.
 - [x] ⚠️ **Breakthroughs** (GDD §5.5): six challenges proven in play, each with a permanent reward — Perfect Form, Iron Body, Ten in Motion, Unbroken Ren, Read and Answer, Shadow Strike. Live progress in the dashboard. *Ten in Motion needs ~Endurance 20 (sprint stamina must last 8 s).*
 - [ ] ◻️ More breakthroughs that unlock new exercises/techniques (e.g. Ken from Ten + Ren), and multi-stage Attempt → Master → Integrate.
-- [ ] ◻️ **Injury / strain** (GDD §9.3): from overload or failed reps; limits specific activities until rested.
+- [x] ⚠️ **Injury / strain** (GDD §9.3): failed reps under overload (≤45 per failure) and training an area while exhausted strain the upper body or legs. Strain cuts gains and strength/speed; at 60+ the area's drills are blocked; rest heals it. No randomness.
 - [ ] ◻️ **Knowledge / insight** beyond aura awakening: exercise variants, enemy counters, technique conditions.
 - [ ] ◻️ Exercise variants that unlock at higher levels so late game isn't "same drill, longer" (GDD §6.3).
 
@@ -61,7 +63,8 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 
 - [x] ⚠️ **Zetsu** (Z): aura sealed — hidden from opponents beyond detection range, fast aura/fatigue recovery, ambush strike from hiding; takes ×1.5 damage. Mastery from ambushes and hiding near an active opponent.
 - [x] ⚠️ **Gyo** (hold G): reads attack timing (impact countdown, next-attack timer), wider parry/dodge windows scaled by Perception; body slightly less protected. Trains Perception via Gyo Reading.
-- [ ] ◻️ Dedicated Zetsu and Gyo drills (today they train only in sparring).
+- [x] ⚠️ **Gyo Stones** drill: find the stone whose aura mark is visible only through Gyo (Perception, Gyo mastery).
+- [ ] ◻️ Dedicated Zetsu drill (today Zetsu trains only in sparring).
 - [ ] ◻️ **Affinity discovery** test (GDD §7.1).
 - [ ] ◻️ **Hatsu builder**: data-driven core effect + activation condition + cost + counterplay + enforceable vow (GDD §7.4). Start with one tested ability (e.g. *Binding Current*).
 
@@ -73,7 +76,7 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 - [ ] ⭐ Playtest and tune: attack timings, telegraph length, guard adaptation, rival HP/damage.
 - [ ] ◻️ More archetypes (GDD §8.4): bruiser, speed specialist, ranged aura user, technical rival.
 - [x] ⚠️ **Hit feedback**: hit-stop, camera shake, slow motion on parries/perfect dodges/ambushes/knockouts (toggleable).
-- [ ] ◻️ Impact VFX and sounds.
+- [x] ⚠️ **Impact VFX and sounds**: spark bursts and code-synthesised sounds (thud, crack, clang, block, whoosh, Ko boom); volume in the pause menu. *Placeholder quality — replace with real assets later.*
 
 ## Player model & animation
 
@@ -89,6 +92,8 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 - [ ] ◻️ Routine-builder UI (with routine training).
 - [x] ⚠️ **Pause/settings menu** (Esc): sensitivity, invert Y, fps cap, VSync, FPS counter, camera shake and hit-stop toggles (saved in PlayerPrefs).
 - [ ] ◻️ Key rebinding.
+- [x] **Playability pass**: dashboard pauses the game; out-of-combat health regen; drill prompts explain what each drill trains; station labels visible from 60 m; arena remembers the chosen opponent; HUD "Next goal" guide from first workout to Elite.
+- [x] **Bug fixes**: pause menu no longer writes settings to disk every frame; Zetsu blocked during physical drills (its fatigue recovery inflated them); Gyo Stones no longer fails the round right after a correct touch; lift strain capped per failure.
 
 ## World (only after the core loop is proven — GDD §15)
 

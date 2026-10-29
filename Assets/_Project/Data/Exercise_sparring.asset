@@ -29,6 +29,7 @@ MonoBehaviour:
   minCompletionForAdaptation: 0.3
   maxIntensityLevel: 1
   requiresAura: 0
+  stressedArea: 0
   qualityHint: "you were hit often and landed little \u2014 read the wind-up, dodge or parry, then punish the opening."
   lowIntensityHint: this opponent no longer pushes you. Pick a stronger one at the arena post ([ / ]).
   metricLabel: 

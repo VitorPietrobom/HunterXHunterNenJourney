@@ -29,6 +29,7 @@ MonoBehaviour:
   minCompletionForAdaptation: 0.3
   maxIntensityLevel: 7
   requiresAura: 0
+  stressedArea: 2
   qualityHint: "pads were reached late or missed \u2014 plan your route and jump early for raised pads."
   lowIntensityHint: the window is generous for your Coordination now. Shorten it with ].
   metricLabel: hit rate (%)

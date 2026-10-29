@@ -27,6 +27,7 @@ MonoBehaviour:
   minCompletionForAdaptation: 0.3
   maxIntensityLevel: 1
   requiresAura: 1
+  stressedArea: 0
   qualityHint: "you read the attacks but still got hit \u2014 act on what Gyo shows you (dodge or parry on the countdown)."
   lowIntensityHint: this opponent's wind-ups are slow for your eyes now. Face a faster opponent.
   metricLabel: 
