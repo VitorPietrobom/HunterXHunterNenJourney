@@ -25,6 +25,15 @@ namespace HunterAwakening
         string lastRep = "";
         bool failedRep;
         Vector3 barRest;
+        Quaternion barRestRotation;
+        bool barOnShoulders;
+        Transform neck;
+
+        [Tooltip("Bar position relative to the neck bone: a back squat rests the bar on the upper traps, just behind the neck.")]
+        [SerializeField] float barBehindNeck = 0.08f;
+        [SerializeField] float barBelowNeck = 0.02f;
+        [Tooltip("Seconds after the set starts before the bar is unracked (lets the squat stance blend in first).")]
+        [SerializeField] float unrackDelay = 0.2f;
 
         float Load => loadsKg[Mathf.Clamp(intensityLevel - 1, 0, loadsKg.Length - 1)];
         protected override string IntensityLabel => $"{Load:0} kg";
@@ -32,7 +41,9 @@ namespace HunterAwakening
 
         void Start()
         {
-            if (barbell != null) barRest = barbell.localPosition;
+            if (barbell == null) return;
+            barRest = barbell.localPosition;
+            barRestRotation = barbell.localRotation;
         }
 
         protected override void OnBegin()
@@ -72,6 +83,9 @@ namespace HunterAwakening
 
         protected override void OnTick(float dt)
         {
+            // Unrack once the squat stance has blended in, so the bar is fixed to the shoulders in the right pose.
+            if (!barOnShoulders && elapsed >= unrackDelay) UnrackBar();
+
             float speed = 0.9f + 1.2f * Mathf.Clamp(relativeLoad, 0f, 1.5f);
             needle += needleDirection * speed * dt;
             if (needle >= 1f) { needle = 1f; needleDirection = -1f; }
@@ -109,9 +123,48 @@ namespace HunterAwakening
             if (reps >= targetReps) Finish(false);
         }
 
+        /// <summary>
+        /// Takes the bar off the rack onto the player's shoulders. With an animated model it then follows the neck
+        /// bone down and up through the squat; the capsule fallback animates it instead.
+        /// </summary>
+        void UnrackBar()
+        {
+            if (barbell == null) return;
+            neck = player.Bone(HumanBodyBones.Neck);
+            if (neck == null)
+            {
+                unrackDelay = float.MaxValue; // capsule fallback: keep the rack-side bar animation
+                return;
+            }
+            barOnShoulders = true;
+            FollowNeck();
+        }
+
+        // After the Animator has posed the skeleton, so the bar sits on this frame's shoulders.
+        void LateUpdate()
+        {
+            if (barOnShoulders) FollowNeck();
+        }
+
+        void FollowNeck()
+        {
+            // Only the neck's height and position are used: the bone tilts and twists with the clip, but a loaded bar
+            // stays level and square across the shoulders. The bar mesh lies along its local X (the player's right).
+            Transform body = player.transform;
+            barbell.SetPositionAndRotation(neck.position - body.forward * barBehindNeck - Vector3.up * barBelowNeck, body.rotation);
+        }
+
+        void RerackBar()
+        {
+            if (barbell == null || !barOnShoulders) return;
+            barbell.SetLocalPositionAndRotation(barRest, barRestRotation);
+            barOnShoulders = false;
+        }
+
         void AnimateBar(float t)
         {
-            if (barbell != null) barbell.localPosition = barRest + Vector3.up * (0.6f * t);
+            // On the shoulders the bar rides the squat with the body; without a model, lower it as the capsule "squats".
+            if (barbell != null && !barOnShoulders) barbell.localPosition = barRest + Vector3.down * (0.45f * t);
         }
 
         protected override string StatusText =>
@@ -145,6 +198,7 @@ namespace HunterAwakening
 
         protected override void OnEnd()
         {
+            RerackBar();
             AnimateBar(0f);
             if (player == null) return;
             player.Motor.SetLocked(false);

@@ -16,6 +16,13 @@ namespace HunterAwakening
         /// <summary>Optional: absent when the player has no animated model.</summary>
         public PlayerAnimator Animation { get; private set; }
 
+        /// <summary>A Humanoid bone of the animated model, or null when the player has no model.</summary>
+        public Transform Bone(HumanBodyBones bone)
+        {
+            var animator = Animation != null ? Animation.Animator : null;
+            return animator != null && animator.isHuman ? animator.GetBoneTransform(bone) : null;
+        }
+
         public void SetPose(PlayerPose pose)
         {
             if (Animation != null) Animation.Pose = pose;

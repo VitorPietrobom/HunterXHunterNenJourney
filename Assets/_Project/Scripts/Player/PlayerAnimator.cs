@@ -47,6 +47,8 @@ namespace HunterAwakening
         float groundSpeed;
 
         public PlayerPose Pose { get; set; }
+        /// <summary>The model's Humanoid Animator (for attaching props such as the barbell to bones).</summary>
+        public Animator Animator => animator;
 
         static int[] BuildHashes()
         {
