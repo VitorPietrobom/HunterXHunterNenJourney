@@ -51,21 +51,21 @@ namespace HunterAwakening.EditorTools
                 fatigue: 22f, maxLevel: 10, requiresAura: false,
                 qualityHint: "press when the needle is inside the green zone; heavier loads narrow it.",
                 lowHint: "Strength progress reduced because the selected load is now too easy. Raise it with ].",
-                metric: "heaviest completed set (kg)", lowerIsBetter: false);
+                metric: "heaviest completed set (kg)", lowerIsBetter: false, stressedArea: BodyArea.Upper);
             var sprintDef = Exercise("sprint_course", "Sprint Course", ExerciseCategory.Physical,
                 "Run laps through the posts in order. Hold sprint the whole way.",
                 new[] { (AttributeId.Speed, 1f), (AttributeId.Endurance, 0.7f) }, null,
                 fatigue: 24f, maxLevel: 6, requiresAura: false,
                 qualityHint: "you spent too long walking or standing — hold Shift and manage stamina.",
                 lowHint: "this lap count is comfortable for your Endurance now. Add laps with ].",
-                metric: "average lap time (s)", lowerIsBetter: true);
+                metric: "average lap time (s)", lowerIsBetter: true, stressedArea: BodyArea.Lower);
             var precisionDef = Exercise("precision_pads", "Precision Pads", ExerciseCategory.Physical,
                 "Reach each glowing pad before its window closes. Raised pads need a jump.",
                 new[] { (AttributeId.Coordination, 1f), (AttributeId.Mobility, 0.6f), (AttributeId.Speed, 0.2f) }, TechniqueId.Footwork,
                 fatigue: 14f, maxLevel: 7, requiresAura: false,
                 qualityHint: "pads were reached late or missed — plan your route and jump early for raised pads.",
                 lowHint: "the window is generous for your Coordination now. Shorten it with ].",
-                metric: "hit rate (%)", lowerIsBetter: false);
+                metric: "hit rate (%)", lowerIsBetter: false, stressedArea: BodyArea.Lower);
             var tenDef = Exercise("aura_ten_control", "Aura Mat", ExerciseCategory.Aura,
                 "Hold aura flow inside the stable band despite drift and disturbances.",
                 new[] { (AttributeId.ControlPrecision, 1f), (AttributeId.SustainedOutput, 0.6f), (AttributeId.AuraCapacity, 0.4f), (AttributeId.Efficiency, 0.3f) },
@@ -80,6 +80,13 @@ namespace HunterAwakening.EditorTools
                 qualityHint: "output kept dropping below the target or crossing the ceiling — hold steady and re-push right after each pressure wave.",
                 lowHint: "this output target is easy for you now. Raise it with ].",
                 metric: "stability (%)", lowerIsBetter: false);
+            var gyoStonesDef = Exercise("gyo_stones", "Gyo Stones", ExerciseCategory.Aura,
+                "Find the stone carrying a hidden aura mark — visible only through Gyo.",
+                new[] { (AttributeId.Perception, 1f), (AttributeId.ControlPrecision, 0.3f) }, TechniqueId.Gyo,
+                fatigue: 10f, maxLevel: 5, requiresAura: true,
+                qualityHint: "marks were missed or found late — keep Gyo up while you move, and head for the mark as soon as you see it.",
+                lowHint: "the window is generous for your Perception now. Shorten it with ].",
+                metric: "marks found (%)", lowerIsBetter: false);
             var sparringDef = Exercise("sparring", "Sparring", ExerciseCategory.Combat,
                 "A real fight is training: absorbing pressure builds Durability, avoiding it builds Coordination.",
                 new[] { (AttributeId.Durability, 0.7f), (AttributeId.Coordination, 0.5f), (AttributeId.Endurance, 0.3f) }, null,
@@ -151,6 +158,8 @@ namespace HunterAwakening.EditorTools
             var session = systems.AddComponent<GameSession>();
             SetRef(session, "config", config);
             SetRef(session, "player", context);
+            var effects = systems.AddComponent<ImpactEffects>();
+            SetRef(effects, "particleMaterial", ParticleMaterial());
             var hud = systems.AddComponent<PrototypeHUD>();
             SetRef(hud, "player", context);
             SetRef(hud, "worldCamera", camera);
@@ -160,6 +169,7 @@ namespace HunterAwakening.EditorTools
             BuildSprintCourse(m, sprintDef);
             BuildPrecisionPads(m, precisionDef);
             BuildAuraArea(m, tenDef, renDef);
+            BuildGyoStones(m, gyoStonesDef);
             BuildArena(m, context, sparringDef, gyoDef);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -270,6 +280,36 @@ namespace HunterAwakening.EditorTools
             SetInt(drill, "intensityLevel", 1);
             SetRef(drill, "definition", def);
             SetRef(drill, "standPoint", stand.transform);
+        }
+
+        static void BuildGyoStones(Materials m, ExerciseDefinition def)
+        {
+            var root = Prim(PrimitiveType.Cylinder, "Gyo Stones", null, new Vector3(-22f, 0.03f, -8f), new Vector3(2f, 0.03f, 2f), m.Stone);
+            var stones = new List<Object>();
+            const int count = 5;
+            for (int i = 0; i < count; i++)
+            {
+                float a = i * Mathf.PI * 2f / count;
+                var stone = Prim(PrimitiveType.Cylinder, $"Reading Stone {i + 1}", null,
+                    new Vector3(-22f + Mathf.Cos(a) * 3.5f, 0.6f, -8f + Mathf.Sin(a) * 3.5f), new Vector3(0.6f, 0.6f, 0.6f), m.Dark);
+                stone.transform.SetParent(root.transform, true);
+                stones.Add(stone.transform);
+            }
+            var lightGo = new GameObject("AuraMark");
+            lightGo.transform.SetParent(root.transform, true);
+            var mark = lightGo.AddComponent<Light>();
+            mark.type = LightType.Point;
+            mark.color = new Color(0.6f, 0.85f, 1f);
+            mark.range = 3f;
+            mark.intensity = 6f;
+            mark.enabled = false;
+
+            var drill = root.AddComponent<AuraReadingDrill>();
+            SetString(drill, "displayName", "Gyo Stones");
+            SetInt(drill, "intensityLevel", 1);
+            SetRef(drill, "definition", def);
+            SetRefs(drill, "stones", stones);
+            SetRef(drill, "markLight", mark);
         }
 
         static void BuildArena(Materials m, PlayerContext player, ExerciseDefinition sparringDef, ExerciseDefinition gyoDef)
@@ -487,7 +527,7 @@ namespace HunterAwakening.EditorTools
 
         static ExerciseDefinition Exercise(string id, string displayName, ExerciseCategory category, string description,
             (AttributeId attribute, float specificity)[] targets, TechniqueId? mastery, float fatigue, int maxLevel, bool requiresAura,
-            string qualityHint, string lowHint, string metric, bool lowerIsBetter)
+            string qualityHint, string lowHint, string metric, bool lowerIsBetter, BodyArea stressedArea = BodyArea.None)
         {
             string path = $"{DataDir}/Exercise_{id}.asset";
             var def = AssetDatabase.LoadAssetAtPath<ExerciseDefinition>(path);
@@ -511,6 +551,7 @@ namespace HunterAwakening.EditorTools
             def.lowIntensityHint = lowHint;
             def.metricLabel = metric;
             def.lowerMetricIsBetter = lowerIsBetter;
+            def.stressedArea = stressedArea;
             EditorUtility.SetDirty(def);
             return def;
         }
@@ -532,6 +573,19 @@ namespace HunterAwakening.EditorTools
             public readonly Material ArenaFloor = Mat("ArenaFloor", new Color(0.6f, 0.55f, 0.45f));
             public readonly Material Wall = Mat("Wall", new Color(0.45f, 0.42f, 0.4f));
             public readonly Material Guard = Mat("Guard", new Color(0.3f, 0.55f, 1f));
+        }
+
+        /// <summary>Unlit particle material for impact sparks (saved as an asset so builds include the shader).</summary>
+        static Material ParticleMaterial()
+        {
+            string path = $"{MaterialDir}/ImpactSpark.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat != null) return mat;
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+            if (shader == null) return null;
+            mat = new Material(shader);
+            AssetDatabase.CreateAsset(mat, path);
+            return mat;
         }
 
         static Material Mat(string name, Color color)

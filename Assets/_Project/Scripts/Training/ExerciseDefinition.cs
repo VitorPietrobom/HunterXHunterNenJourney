@@ -30,6 +30,8 @@ namespace HunterAwakening
         [Range(0f, 1f)] public float minCompletionForAdaptation = 0.3f;
         [Min(1)] public int maxIntensityLevel = 5;
         public bool requiresAura;
+        [Tooltip("Body area this exercise loads: overload strains it, and heavy strain blocks it until rested.")]
+        public BodyArea stressedArea;
 
         [Header("Feedback")]
         [TextArea] public string qualityHint;

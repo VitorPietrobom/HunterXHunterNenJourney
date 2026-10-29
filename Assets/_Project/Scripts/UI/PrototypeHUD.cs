@@ -90,7 +90,8 @@ namespace HunterAwakening
             if (p.IsAuraAwakened)
             {
                 var a = player.Aura;
-                string mode = a.ZetsuActive ? " · ZETSU" : a.RenBroken ? " · REN BROKEN" : a.RenActive ? " · REN" : a.TenActive ? " · TEN" : "";
+                string mode = a.ZetsuActive ? " · ZETSU" : a.RenBroken ? " · REN BROKEN" : a.KenActive ? " · KEN" : a.RenActive ? " · REN" : a.TenActive ? " · TEN" : "";
+                if (a.CanKo) mode += " · F: KO";
                 if (a.GyoActive) mode += " · GYO";
                 HudGui.Bar(new Rect(x, y, w, h), player.Aura.Current / Mathf.Max(1f, player.Aura.Capacity), new Color(0.4f, 0.8f, 1f),
                     $"Aura {player.Aura.Current:0}/{player.Aura.Capacity:0}{mode}");
@@ -100,7 +101,9 @@ namespace HunterAwakening
             y += h + 4;
             HudGui.Bar(new Rect(x, y, w, h), f.Accumulated / 100f, new Color(0.6f, 0.35f, 0.75f), $"Accumulated {f.Accumulated:0} · adaptation {HudGui.Pct(f.AdaptationEfficiency)}");
             y += h + 6;
-            GUI.Label(new Rect(x, y, w, 40), $"<size=11>Training sessions {p.TrainingSessions} · Tab: dashboard · F1: controls</size>", HudGui.Small);
+            string strain = p.GetStrain(BodyArea.Upper) > 0.5f || p.GetStrain(BodyArea.Lower) > 0.5f
+                ? $" · <color=#ff8866>strain: upper {p.GetStrain(BodyArea.Upper):0} / legs {p.GetStrain(BodyArea.Lower):0}</color>" : "";
+            GUI.Label(new Rect(x, y, w, 40), $"<size=11>Training sessions {p.TrainingSessions}{strain} · Tab: dashboard · F1: controls</size>", HudGui.Small);
         }
 
         void DrawWorldLabels()
@@ -174,7 +177,7 @@ namespace HunterAwakening
                 "WASD move · Mouse look · Shift sprint · Space jump · Ctrl dodge\n" +
                 "LMB light · RMB heavy · Q block (tap just before a hit to parry)\n" +
                 "E interact · [ / ] drill intensity · Space/LMB drill action\n" +
-                "T Ten · hold R Ren · Z Zetsu · hold G Gyo (after aura awakening)\n" +
+                "T Ten · hold R Ren · Z Zetsu · hold G Gyo · Ten+Ren Ken · F Ko (once learned)\n" +
                 "Tab dashboard · Esc pause/settings · F5 save · F9 reload · F1 hide";
             var r = new Rect(Screen.width - 476f, 16f, 460f, 112f);
             HudGui.Panel(r);

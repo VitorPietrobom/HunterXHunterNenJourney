@@ -72,6 +72,19 @@ namespace HunterAwakening
         public static float GyoParryBonus(double perception) => Mathf.Min(0.04f + 0.03f * G(perception), 0.15f);
         public static float GyoDodgeBonus(double perception) => Mathf.Min(0.02f + 0.02f * G(perception), 0.08f);
 
+        // Ken: Ten + Ren as one stance. Far sturdier than either alone; rooted (no Ren speed), steadier Ren.
+        public static float KenDamageTakenMultiplier(double maxOutput, double control, float tenMastery)
+            => Mathf.Clamp(Mathf.Min(TenDamageMultiplier(control, tenMastery), RenDamageTakenMultiplier(maxOutput)) * 0.75f, 0.2f, 0.5f);
+        public static float KenDrainMultiplier(float kenMastery) => kenMastery >= MasteryMilestones.KenCheap ? 0.85f : 1.15f;
+        public const float KenBreakChanceMultiplier = 0.5f;
+
+        // Ko: all aura into one strike. Huge damage, big cost, and a defenceless body while it's thrown.
+        public static float KoDamageMultiplier(double maxOutput) => Mathf.Min(2.5f + 0.3f * G(maxOutput), 4f);
+        public static float KoAuraCost(float currentAura, float koMastery)
+            => Mathf.Max(20f, currentAura * (koMastery >= MasteryMilestones.KoCheap ? 0.25f : 0.35f));
+        public const float KoDamageTakenMultiplier = 1.8f;
+        public const float KoStagger = 1.3f;
+
         /// <summary>Highest output (0..1 of the Ren Circle meter) the player can hold before Ren destabilises.</summary>
         public static float RenControlCeiling(double control) => Mathf.Clamp(0.7f + 0.08f * G(control), 0.7f, 0.97f);
         /// <summary>Output level (0..1) that is a comfortable challenge for the player's Max Output.</summary>

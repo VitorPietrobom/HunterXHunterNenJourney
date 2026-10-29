@@ -16,6 +16,7 @@ namespace HunterAwakening
         [SerializeField] Color renColor = new Color(1f, 0.55f, 0.15f);
         [SerializeField] Color brokenColor = new Color(0.9f, 0.2f, 0.2f);
         [SerializeField] Color gyoColor = new Color(0.75f, 0.85f, 1f);
+        [SerializeField] Color kenColor = new Color(0.85f, 0.5f, 1f);
         [Tooltip("Seconds Ren cannot be re-raised after it breaks.")]
         [SerializeField] float renLockout = 1.5f;
         [Tooltip("Seconds of extra damage taken after Ren breaks (the opening).")]
@@ -41,15 +42,24 @@ namespace HunterAwakening
         public bool ZetsuActive { get; private set; }
         public bool GyoActive { get; private set; }
         public bool RenBroken => lockoutTimer > 0f;
+
+        public const string KenInsight = "technique:ken";
+        public const string KoInsight = "technique:ko";
+        public bool KenUnlocked => P.KnowsInsight(KenInsight);
+        public bool KoUnlocked => P.KnowsInsight(KoInsight);
+        /// <summary>Ten and Ren held together as one stance (once learned).</summary>
+        public bool KenActive => TenActive && RenActive && KenUnlocked;
+        /// <summary>Ko can be thrown: learned and Ren is up.</summary>
+        public bool CanKo => KoUnlocked && RenActive;
         /// <summary>Set by drills to show the Ren glow while the player channels output without holding R (0..1).</summary>
         public float DrillGlow { get; set; }
         /// <summary>Set by physical drills: Ren would inflate what they measure, so it can't be raised.</summary>
         public bool SuppressRen { get; set; }
 
         /// <summary>Ren-enhanced movement (run, sprint, dodge).</summary>
-        public float SpeedMultiplier => RenActive ? StatEffects.RenSpeedMultiplier(MaxOutput) : 1f;
-        /// <summary>Ren-enhanced attack wind-up and recovery (timings are divided by this).</summary>
-        public float AttackSpeedMultiplier => RenActive ? StatEffects.RenAttackSpeedMultiplier(MaxOutput) : 1f;
+        public float SpeedMultiplier => RenActive && !KenActive ? StatEffects.RenSpeedMultiplier(MaxOutput) : 1f;
+        /// <summary>Ren-enhanced attack wind-up and recovery (timings are divided by this). Ken is a rooted stance.</summary>
+        public float AttackSpeedMultiplier => RenActive && !KenActive ? StatEffects.RenAttackSpeedMultiplier(MaxOutput) : 1f;
         /// <summary>Extra parry window (seconds) while Gyo reads the opponent.</summary>
         public float ParryWindowBonus => GyoActive ? StatEffects.GyoParryBonus(P.GetAttribute(AttributeId.Perception)) * GyoBreakthroughFactor : 0f;
         /// <summary>Extra dodge invulnerability (seconds) while Gyo reads the opponent.</summary>
@@ -69,8 +79,12 @@ namespace HunterAwakening
             {
                 if (ZetsuActive) return StatEffects.ZetsuDamageTakenMultiplier;
                 float m = 1f;
-                if (TenActive) m = StatEffects.TenDamageMultiplier(Control, P.GetMastery(TechniqueId.Ten));
-                if (RenActive) m = Mathf.Min(m, StatEffects.RenDamageTakenMultiplier(MaxOutput));
+                if (KenActive) m = StatEffects.KenDamageTakenMultiplier(MaxOutput, Control, P.GetMastery(TechniqueId.Ten));
+                else
+                {
+                    if (TenActive) m = StatEffects.TenDamageMultiplier(Control, P.GetMastery(TechniqueId.Ten));
+                    if (RenActive) m = Mathf.Min(m, StatEffects.RenDamageTakenMultiplier(MaxOutput));
+                }
                 if (GyoActive) m *= StatEffects.GyoDamageTakenMultiplier;
                 if (vulnerableTimer > 0f) m *= breakDamageMultiplier;
                 return m;
@@ -100,7 +114,8 @@ namespace HunterAwakening
         {
             if (!RenActive) return false;
             float chance = StatEffects.RenBreakChance(MaxOutput, Control, P.GetMastery(TechniqueId.Ren))
-                           * (P.HasBreakthrough(Breakthroughs.UnbrokenRen) ? 0.7f : 1f);
+                           * (P.HasBreakthrough(Breakthroughs.UnbrokenRen) ? 0.7f : 1f)
+                           * (KenActive ? StatEffects.KenBreakChanceMultiplier : 1f);
             if (Random.value >= chance) return false;
             RenActive = false;
             lockoutTimer = renLockout;
@@ -109,6 +124,23 @@ namespace HunterAwakening
             HitFeedback.Shake(0.45f);
             GameSession.Instance.PushNotice("Ren destabilised! Your output outpaced your control.", 2.5f);
             return true;
+        }
+
+        /// <summary>Pays for a Ko strike. Returns false (and spends nothing) if Ko can't be thrown or the reserve is short.</summary>
+        public bool TrySpendKo()
+        {
+            if (!CanKo) return false;
+            return TrySpend(StatEffects.KoAuraCost(Current, P.GetMastery(TechniqueId.Ko)));
+        }
+
+        void CheckAdvancedUnlocks()
+        {
+            if (!KenUnlocked && P.GetMastery(TechniqueId.Ten) >= MasteryMilestones.KenUnlockTenMastery
+                             && P.GetMastery(TechniqueId.Ren) >= MasteryMilestones.KenUnlockRenMastery)
+                P.UnlockInsight(KenInsight, "Ken", "Hold Ren (R) while Ten (T) is up: a rooted stance far sturdier than either alone, with steadier Ren.");
+            if (!KoUnlocked && P.GetMastery(TechniqueId.Ren) >= MasteryMilestones.KoUnlockRenMastery
+                            && MaxOutput >= MasteryMilestones.KoUnlockMaxOutput)
+                P.UnlockInsight(KoInsight, "Ko", "With Ren up, press F to pour all your aura into one strike — devastating, expensive, and defenceless while thrown.");
         }
 
         /// <summary>Leaves Zetsu (e.g. after striking from hiding).</summary>
@@ -134,6 +166,7 @@ namespace HunterAwakening
             }
 
             bool blocked = session.InputBlocked || motor.Locked;
+            CheckAdvancedUnlocks();
 
             if (!blocked && input.ZetsuPressed)
             {
@@ -167,7 +200,8 @@ namespace HunterAwakening
                 float output = StatEffects.RenOutput(MaxOutput);
                 float leakage = StatEffects.RenLeakage(MaxOutput, Control, P.GetMastery(TechniqueId.Ren));
                 float renPower = output * (1f + leakage);
-                if (motor.IsMoving) renPower *= StatEffects.RenMovingDrainMultiplier(sustained);
+                if (KenActive) renPower *= StatEffects.KenDrainMultiplier(P.GetMastery(TechniqueId.Ken));
+                else if (motor.IsMoving) renPower *= StatEffects.RenMovingDrainMultiplier(sustained);
                 powerPerSecond += renPower;
                 P.AddExertion(StatEffects.RenFatiguePerSecond(sustained) * dt);
             }
@@ -221,7 +255,7 @@ namespace HunterAwakening
             if (auraLight == null) return;
             bool ren = RenActive || DrillGlow > 0.05f;
             auraLight.enabled = !ZetsuActive && (TenActive || ren || RenBroken || GyoActive);
-            auraLight.color = RenBroken ? brokenColor : ren ? renColor : TenActive ? tenColor : gyoColor;
+            auraLight.color = RenBroken ? brokenColor : KenActive ? kenColor : ren ? renColor : TenActive ? tenColor : gyoColor;
             auraLight.intensity = RenBroken ? 1.5f : RenActive ? 6f : DrillGlow > 0.05f ? 2f + 5f * DrillGlow : TenActive ? 2.5f : 1.2f;
         }
     }

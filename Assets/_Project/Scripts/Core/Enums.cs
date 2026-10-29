@@ -31,8 +31,12 @@ namespace HunterAwakening
         Ren,
         // Appended (saves store technique ids as ints).
         Zetsu,
-        Gyo
+        Gyo,
+        Ken,
+        Ko
     }
+
+    public enum BodyArea { None, Upper, Lower }
 
     public enum ExerciseCategory
     {

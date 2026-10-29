@@ -8,6 +8,8 @@ namespace HunterAwakening
     [Serializable] public class MasteryEntry { public TechniqueId id; public float value; }
     [Serializable] public class FatigueState { public float immediate; public float accumulated; }
     [Serializable] public class AuraState { public bool awakened; public float current; }
+    /// <summary>Strain per body area, 0..100 (GDD §9.3). Comes from overload, not chance.</summary>
+    [Serializable] public class InjuryState { public float upper; public float lower; }
 
     [Serializable]
     public class ExerciseRecord
@@ -42,6 +44,7 @@ namespace HunterAwakening
         public List<MasteryEntry> mastery = new List<MasteryEntry>();
         public FatigueState fatigue = new FatigueState();
         public AuraState aura = new AuraState();
+        public InjuryState injury = new InjuryState();
         public List<ExerciseRecord> records = new List<ExerciseRecord>();
         public List<HistoryEntry> history = new List<HistoryEntry>();
         public List<string> knowledge = new List<string>();
@@ -93,6 +96,7 @@ namespace HunterAwakening
             mastery ??= new List<MasteryEntry>();
             fatigue ??= new FatigueState();
             aura ??= new AuraState();
+            injury ??= new InjuryState();
             records ??= new List<ExerciseRecord>();
             history ??= new List<HistoryEntry>();
             knowledge ??= new List<string>();
@@ -117,6 +121,8 @@ namespace HunterAwakening
             fatigue.immediate = SafeClamp(fatigue.immediate, 0, 100);
             fatigue.accumulated = SafeClamp(fatigue.accumulated, 0, 100);
             aura.current = SafeClamp(aura.current, 0, float.MaxValue);
+            injury.upper = SafeClamp(injury.upper, 0, 100);
+            injury.lower = SafeClamp(injury.lower, 0, 100);
             if (!aura.awakened) aura.current = 0;
             if (trainingSessions < 0) trainingSessions = 0;
             if (double.IsNaN(activePlaySeconds) || activePlaySeconds < 0) activePlaySeconds = 0;

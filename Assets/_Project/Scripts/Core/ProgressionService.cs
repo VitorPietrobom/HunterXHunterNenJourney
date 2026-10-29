@@ -41,6 +41,27 @@ namespace HunterAwakening
         public bool KnowsInsight(string id) => state.knowledge.Contains(id);
         public bool HasBreakthrough(string id) => state.knowledge.Contains("breakthrough:" + id);
 
+        // ------------------------------------------------------------------ Strain (GDD §9.3)
+
+        /// <summary>At or above this strain, exercises that load the area are off-limits until rested.</summary>
+        public const float StrainBlockThreshold = 60f;
+        const float StrainRestRecovery = 3f;
+        const float StrainPassiveRecovery = 0.03f;
+
+        public float GetStrain(BodyArea area) => area == BodyArea.Upper ? state.injury.upper : area == BodyArea.Lower ? state.injury.lower : 0f;
+
+        /// <summary>Gameplay multiplier for a strained area (strength for upper, speed for lower).</summary>
+        public float StrainPenalty(BodyArea area) => 1f - GetStrain(area) / 300f;
+
+        public static string AreaName(BodyArea area) => area == BodyArea.Upper ? "upper body" : area == BodyArea.Lower ? "legs" : "body";
+
+        void AddStrain(BodyArea area, float amount)
+        {
+            if (!(amount > 0f)) return;
+            if (area == BodyArea.Upper) state.injury.upper = Mathf.Clamp(state.injury.upper + amount, 0f, 100f);
+            else if (area == BodyArea.Lower) state.injury.lower = Mathf.Clamp(state.injury.lower + amount, 0f, 100f);
+        }
+
         /// <summary>Records a proven breakthrough (stored with the player's knowledge). Returns false if already known.</summary>
         public bool UnlockBreakthrough(string id)
         {
@@ -78,6 +99,9 @@ namespace HunterAwakening
             }
             else record.lowQualityStreak = 0;
 
+            // Training a strained area is less effective.
+            float strainFactor = def.stressedArea != BodyArea.None ? 1f - GetStrain(def.stressedArea) / 150f : 1f;
+
             if (valid)
             {
                 foreach (var target in def.targets)
@@ -85,7 +109,7 @@ namespace HunterAwakening
                     var curve = config.GetCurve(target.attribute);
                     double before = GetAttribute(target.attribute);
                     double stimulus = ProgressionMath.EffectiveStimulus(o.completion, o.intensity, o.quality, o.readiness, target.specificity)
-                                      * report.accumulatedFactor * sloppyFactor;
+                                      * report.accumulatedFactor * sloppyFactor * strainFactor;
                     double delta = ProgressionMath.AttributeGain(before, stimulus, curve.learningRate, curve.baseline, curve.scale, curve.exponent);
                     state.Attribute(target.attribute).value = before + delta;
                     report.changes.Add(new AttributeChange
@@ -114,6 +138,15 @@ namespace HunterAwakening
             Fatigue.AddLoad(load);
             report.fatigueAdded = load;
 
+            // Strain: what the drill reports (e.g. a failed rep under overload), plus training an area while exhausted.
+            float strain = o.strain;
+            if (def.stressedArea != BodyArea.None && o.readiness < 0.35f) strain += 12f * (1f - o.readiness / 0.35f);
+            if (def.stressedArea != BodyArea.None && strain > 0f)
+            {
+                AddStrain(def.stressedArea, strain);
+                report.strainAdded = strain;
+            }
+
             record.sessions++;
             if (valid)
             {
@@ -131,6 +164,11 @@ namespace HunterAwakening
             }
 
             BuildNotes(def, report, completedEnough, auraOk, sloppyFactor);
+            if (report.strainAdded > 0f)
+                report.notes.Add($"Strain: your {AreaName(def.stressedArea)} took {report.strainAdded:0} strain (now {GetStrain(def.stressedArea):0}). " +
+                                 $"At {StrainBlockThreshold:0}+ this exercise is off-limits; resting at the bench heals it.");
+            else if (strainFactor < 0.9f)
+                report.notes.Add($"Existing strain in your {AreaName(def.stressedArea)} cut gains to {strainFactor:P0}. Rest at the bench.");
             AddHistory(def.displayName, report.Headline);
             ExerciseApplied?.Invoke(report);
             StateChanged?.Invoke();
@@ -212,6 +250,9 @@ namespace HunterAwakening
             if (!(dt > 0f)) return;
             state.activePlaySeconds += dt;
             Fatigue.Recover(dt, resting);
+            float heal = (resting ? StrainRestRecovery : StrainPassiveRecovery) * dt;
+            state.injury.upper = Mathf.Max(0f, state.injury.upper - heal);
+            state.injury.lower = Mathf.Max(0f, state.injury.lower - heal);
         }
 
         public void SetAuraCurrent(float value, float capacity)

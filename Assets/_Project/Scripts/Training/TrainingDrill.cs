@@ -67,6 +67,12 @@ namespace HunterAwakening
                 Session.PushNotice("You cannot sense your aura yet. Awaken it at the Meditation Stone.");
                 return;
             }
+            var area = definition.stressedArea;
+            if (area != BodyArea.None && Progression.GetStrain(area) >= ProgressionService.StrainBlockThreshold)
+            {
+                Session.PushNotice($"Your {ProgressionService.AreaName(area)} is strained ({Progression.GetStrain(area):0}). Rest at the bench before training it again.", 3f);
+                return;
+            }
             if (!CanStart(ctx, out string reason))
             {
                 Session.PushNotice(reason);

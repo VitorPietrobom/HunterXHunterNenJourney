@@ -5,7 +5,7 @@ namespace HunterAwakening
     /// <summary>Esc menu: stops time and edits GameSettings. Drawn by the HUD; input toggling lives in GameSession.</summary>
     public class PauseMenu
     {
-        float sensitivity;
+        float sensitivity, sfxVolume;
         bool invertY, vsync, showFps, shake, hitStop;
         int fpsIndex;
         bool loaded;
@@ -18,6 +18,7 @@ namespace HunterAwakening
             showFps = GameSettings.ShowFps;
             shake = GameSettings.CameraShake;
             hitStop = GameSettings.HitStop;
+            sfxVolume = GameSettings.SfxVolume;
             fpsIndex = System.Array.IndexOf(GameSettings.FrameRateOptions, GameSettings.FrameRateCap);
             if (fpsIndex < 0) fpsIndex = System.Array.IndexOf(GameSettings.FrameRateOptions, FrameRateSettings.TargetFrameRate);
             loaded = true;
@@ -27,7 +28,7 @@ namespace HunterAwakening
         {
             if (!loaded) Open();
             HudGui.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.55f));
-            float w = Mathf.Min(460f, Screen.width - 40f), h = 430f;
+            float w = Mathf.Min(460f, Screen.width - 40f), h = 480f;
             var area = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
             HudGui.Panel(area);
 
@@ -55,8 +56,10 @@ namespace HunterAwakening
             showFps = GUILayout.Toggle(showFps, " Show FPS counter");
             shake = GUILayout.Toggle(shake, " Camera shake");
             hitStop = GUILayout.Toggle(hitStop, " Hit-stop and slow motion");
+            GUILayout.Label($"Sound effects {sfxVolume * 100f:0}%", HudGui.Label);
+            sfxVolume = GUILayout.HorizontalSlider(sfxVolume, 0f, 1f);
 
-            GameSettings.Set(sensitivity, invertY, GameSettings.FrameRateOptions[fpsIndex], vsync, showFps, shake, hitStop);
+            GameSettings.Set(sensitivity, invertY, GameSettings.FrameRateOptions[fpsIndex], vsync, showFps, shake, hitStop, sfxVolume);
 
             GUILayout.FlexibleSpace();
             GUILayout.BeginHorizontal();

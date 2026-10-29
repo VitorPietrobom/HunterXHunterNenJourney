@@ -86,6 +86,13 @@ namespace HunterAwakening
                 : f.AdaptationEfficiency < 0.8f ? "Accumulated fatigue is cutting adaptation. A longer rest clears it."
                 : "Fresh enough to train hard.";
             GUILayout.Label(advice, HudGui.Small);
+            foreach (var area in new[] { BodyArea.Upper, BodyArea.Lower })
+            {
+                float s = p.GetStrain(area);
+                if (s < 0.5f) continue;
+                string blocked = s >= ProgressionService.StrainBlockThreshold ? " — <color=#ff6655>too strained to train</color>" : "";
+                GUILayout.Label($"Strain ({ProgressionService.AreaName(area)}) <b>{s:0}</b>: {(area == BodyArea.Upper ? "strength" : "speed")} ×{p.StrainPenalty(area):0.00}, training gains ×{1f - s / 150f:0.00}{blocked}. Rest at the bench to heal.", HudGui.Wrap);
+            }
         }
 
         static void DrawBreakthroughs(GameSession session, ProgressionService p)
@@ -112,8 +119,18 @@ namespace HunterAwakening
             GUILayout.Label("Technique mastery", HudGui.Header);
             foreach (TechniqueId id in Enum.GetValues(typeof(TechniqueId)))
             {
-                bool auraTechnique = id == TechniqueId.Ten || id == TechniqueId.Ren || id == TechniqueId.Zetsu || id == TechniqueId.Gyo;
+                bool auraTechnique = id >= TechniqueId.Ten; // Ten, Ren, Zetsu, Gyo, Ken, Ko
                 if (auraTechnique && !p.IsAuraAwakened) continue;
+                if (id == TechniqueId.Ken && !p.KnowsInsight(AuraController.KenInsight))
+                {
+                    GUILayout.Label($"<b>Ken</b> <size=11>(locked: Ten and Ren mastery {MasteryMilestones.KenUnlockTenMastery:0}+)</size>", HudGui.Label);
+                    continue;
+                }
+                if (id == TechniqueId.Ko && !p.KnowsInsight(AuraController.KoInsight))
+                {
+                    GUILayout.Label($"<b>Ko</b> <size=11>(locked: Ren mastery {MasteryMilestones.KoUnlockRenMastery:0}+ and Max Output {MasteryMilestones.KoUnlockMaxOutput:0}+)</size>", HudGui.Label);
+                    continue;
+                }
                 float m = p.GetMastery(id);
                 GUILayout.Label($"<b>{AttributeInfo.Label(id)}</b>  {m:0.0} ({MasteryMilestones.Tier(m)})", HudGui.Label);
                 GUILayout.Label($"Next: {MasteryMilestones.Next(id, m)}", HudGui.Small);

@@ -97,7 +97,7 @@ namespace HunterAwakening
 
             double speedStat = p.GetAttribute(AttributeId.Speed);
             double endurance = p.GetAttribute(AttributeId.Endurance);
-            float performance = p.Fatigue.PerformanceMultiplier * (aura != null ? aura.SpeedMultiplier : 1f);
+            float performance = p.Fatigue.PerformanceMultiplier * (aura != null ? aura.SpeedMultiplier : 1f) * p.StrainPenalty(BodyArea.Lower);
 
             bool wantsSprint = input.SprintHeld && IsMoving && !blocked && !vitals.IsExhausted
                                && (combat == null || (!combat.IsBlocking && !combat.IsAttacking));
@@ -121,6 +121,7 @@ namespace HunterAwakening
                 {
                     dodgeDirection = IsMoving ? direction.normalized : -transform.forward;
                     dodgeTimer = dodgeDuration;
+                    ImpactEffects.Dodge();
                     Dodged?.Invoke();
                 }
             }

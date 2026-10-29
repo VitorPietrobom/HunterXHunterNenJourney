@@ -17,6 +17,8 @@ namespace HunterAwakening
         /// <summary>Drill-specific record metric (0 = none).</summary>
         public float primaryMetric;
         public string endReason;
+        /// <summary>Strain added to the exercise's stressed body area (e.g. a failed rep under an overloaded bar).</summary>
+        public float strain;
         public readonly List<string> metrics = new List<string>();
 
         public void Sanitize()
@@ -26,6 +28,7 @@ namespace HunterAwakening
             readiness = ProgressionMath.Clean01(readiness);
             intensity = float.IsNaN(intensity) ? 0f : Mathf.Clamp(intensity, 0f, (float)ProgressionMath.MaxIntensity);
             if (float.IsNaN(primaryMetric) || float.IsInfinity(primaryMetric) || primaryMetric < 0f) primaryMetric = 0f;
+            strain = float.IsNaN(strain) ? 0f : Mathf.Clamp(strain, 0f, 100f);
         }
     }
 
@@ -52,6 +55,7 @@ namespace HunterAwakening
         public float masteryBefore;
         public float masteryAfter;
         public float fatigueAdded;
+        public float strainAdded;
         public bool newRecord;
         public readonly List<string> notes = new List<string>();
 

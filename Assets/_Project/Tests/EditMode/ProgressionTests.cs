@@ -117,6 +117,16 @@ namespace HunterAwakening.Tests
         }
 
         [Test]
+        public void KenAndKo_AreStrongButBounded()
+        {
+            Assert.Less(StatEffects.KenDamageTakenMultiplier(10, 10, 0), StatEffects.RenDamageTakenMultiplier(10), "Ken out-defends Ren");
+            Assert.GreaterOrEqual(StatEffects.KenDamageTakenMultiplier(1e9, 1e9, 1000), 0.2f);
+            Assert.LessOrEqual(StatEffects.KoDamageMultiplier(1e9), 4f);
+            Assert.AreEqual(20f, StatEffects.KoAuraCost(10f, 0f), 1e-4f, "Ko has a minimum cost");
+            Assert.Less(StatEffects.KoAuraCost(200f, 100f), StatEffects.KoAuraCost(200f, 0f), "Ko mastery cuts the cost");
+        }
+
+        [Test]
         public void Ren_DefenceIsStrongerThanTenAndBounded()
         {
             Assert.Less(StatEffects.RenDamageTakenMultiplier(10), StatEffects.TenDamageMultiplier(10, 0));
@@ -218,6 +228,32 @@ namespace HunterAwakening.Tests
             var loaded = JsonUtility.FromJson<PlayerState>(JsonUtility.ToJson(p.State));
             loaded.Sanitize();
             Assert.IsTrue(new ProgressionService(config, loaded).HasBreakthrough(Breakthroughs.IronBody));
+        }
+
+        [Test]
+        public void Strain_FromOverload_ReducesGainsAndHealsWithRest()
+        {
+            definition.stressedArea = BodyArea.Upper;
+            var p = new ProgressionService(config, PlayerState.CreateNew());
+            var failed = Good();
+            failed.strain = 70f;
+            var report = p.ApplyExercise(definition, failed);
+            Assert.AreEqual(70f, p.GetStrain(BodyArea.Upper), 1e-3f);
+            Assert.AreEqual(0f, p.GetStrain(BodyArea.Lower));
+            Assert.Greater(report.strainAdded, 0f);
+            Assert.Less(p.StrainPenalty(BodyArea.Upper), 1f);
+
+            // A strained area trains less effectively.
+            var fresh = new ProgressionService(config, PlayerState.CreateNew());
+            fresh.ApplyExercise(definition, Good());
+            double freshGain = fresh.GetAttribute(AttributeId.Strength) - 10.0;
+            p.State.fatigue.immediate = p.State.fatigue.accumulated = 0f;
+            double before = p.GetAttribute(AttributeId.Strength);
+            p.ApplyExercise(definition, Good());
+            Assert.Less(p.GetAttribute(AttributeId.Strength) - before, freshGain);
+
+            p.TickActiveTime(10f, true);
+            Assert.Less(p.GetStrain(BodyArea.Upper), 70f, "rest heals strain");
         }
 
         [Test]

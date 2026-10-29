@@ -17,6 +17,7 @@ namespace HunterAwakening
         public static bool ShowFps { get; private set; } = true;
         public static bool CameraShake { get; private set; } = true;
         public static bool HitStop { get; private set; } = true;
+        public static float SfxVolume { get; private set; } = 0.8f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Load()
@@ -28,10 +29,11 @@ namespace HunterAwakening
             ShowFps = PlayerPrefs.GetInt("ha.showFps", 1) == 1;
             CameraShake = PlayerPrefs.GetInt("ha.shake", 1) == 1;
             HitStop = PlayerPrefs.GetInt("ha.hitstop", 1) == 1;
+            SfxVolume = Mathf.Clamp01(PlayerPrefs.GetFloat("ha.sfx", 0.8f));
             Apply();
         }
 
-        public static void Set(float sensitivity, bool invertY, int fpsCap, bool vsync, bool showFps, bool shake, bool hitStop)
+        public static void Set(float sensitivity, bool invertY, int fpsCap, bool vsync, bool showFps, bool shake, bool hitStop, float sfxVolume)
         {
             MouseSensitivity = Mathf.Clamp(sensitivity, 0.2f, 3f);
             InvertY = invertY;
@@ -40,6 +42,7 @@ namespace HunterAwakening
             ShowFps = showFps;
             CameraShake = shake;
             HitStop = hitStop;
+            SfxVolume = Mathf.Clamp01(sfxVolume);
             PlayerPrefs.SetFloat("ha.sensitivity", MouseSensitivity);
             PlayerPrefs.SetInt("ha.invertY", InvertY ? 1 : 0);
             PlayerPrefs.SetInt("ha.fpsCap", FrameRateCap);
@@ -47,6 +50,7 @@ namespace HunterAwakening
             PlayerPrefs.SetInt("ha.showFps", ShowFps ? 1 : 0);
             PlayerPrefs.SetInt("ha.shake", CameraShake ? 1 : 0);
             PlayerPrefs.SetInt("ha.hitstop", HitStop ? 1 : 0);
+            PlayerPrefs.SetFloat("ha.sfx", SfxVolume);
             PlayerPrefs.Save();
             Apply();
         }

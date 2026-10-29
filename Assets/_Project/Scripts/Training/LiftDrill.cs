@@ -133,7 +133,9 @@ namespace HunterAwakening
                 completion = (float)reps / targetReps,
                 quality = reps > 0 ? qualitySum / reps : 0f,
                 intensity = Mathf.Clamp(relativeLoad / 0.8f, 0f, 1.4f),
-                primaryMetric = load
+                primaryMetric = load,
+                // Failing under the bar strains the upper body, more so the further past the 1RM.
+                strain = failedRep ? 15f + 60f * Mathf.Max(0f, relativeLoad - 1f) : 0f
             };
             o.metrics.Add($"Load {load:0} kg = {HudGui.Pct(relativeLoad)} of est. 1RM ({oneRepMax:0} kg)");
             o.metrics.Add($"Reps {reps}/{targetReps}{(failedRep ? " (failed rep)" : "")}");

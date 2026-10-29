@@ -69,6 +69,9 @@ namespace HunterAwakening
         public Phase CurrentPhase { get; private set; }
         public bool IsAttacking => CurrentPhase != Phase.None;
         public bool IsHeavyAttack => IsAttacking && current != null && current.heavy;
+        /// <summary>The current attack is a Ko strike (all aura in one fist).</summary>
+        public bool IsKoStrike => IsAttacking && currentIsKo;
+        bool currentIsKo;
         /// <summary>Wind-up time of the current attack, after fatigue.</summary>
         public float StartupDuration { get; private set; }
         /// <summary>Active + recovery time of the current attack, after mastery and fatigue.</summary>
@@ -123,13 +126,36 @@ namespace HunterAwakening
             {
                 if (input.LightPressed) Begin(lightAttack);
                 else if (input.HeavyPressed) Begin(heavyAttack);
+                else if (input.KoPressed) TryKo();
             }
 
             if (IsAttacking) AdvancePhase(Time.deltaTime);
             motor.MoveMultiplier = IsAttacking ? current.moveMultiplier : IsBlocking ? 0.45f : 1f;
         }
 
-        void Begin(AttackSpec spec)
+        void TryKo()
+        {
+            if (!aura.KoUnlocked) return;
+            var session = GameSession.Instance;
+            if (!aura.RenActive)
+            {
+                session.PushNotice("Ko needs Ren — hold R, then press F.", 2f);
+                return;
+            }
+            if (vitals.Stamina < heavyAttack.staminaCost)
+            {
+                session.PushNotice("Not enough stamina for Ko.", 1.5f);
+                return;
+            }
+            if (!aura.TrySpendKo())
+            {
+                session.PushNotice("Not enough aura for Ko.", 1.5f);
+                return;
+            }
+            Begin(heavyAttack, true);
+        }
+
+        void Begin(AttackSpec spec, bool ko = false)
         {
             if (!vitals.TrySpend(spec.staminaCost))
             {
@@ -140,14 +166,16 @@ namespace HunterAwakening
             if (target != null) motor.FaceTowards(target.transform.position);
 
             current = spec;
+            currentIsKo = ko;
             CurrentPhase = Phase.Startup;
             float performance = P.Fatigue.PerformanceMultiplier * aura.AttackSpeedMultiplier;
-            StartupDuration = spec.startup / performance;
+            StartupDuration = spec.startup / performance * (ko ? 1.3f : 1f); // gathering everything into the fist takes a moment
             // Mastery shortens recovery; fatigue lengthens it.
             float masteryCut = Mathf.Lerp(1f, 0.6f, Mathf.Clamp01(P.GetMastery(spec.technique) / 100f));
             recoveryDuration = spec.recovery * masteryCut / performance;
             phaseTimer = StartupDuration;
             P.AddExertion(spec.heavy ? 0.6f : 0.25f);
+            ImpactEffects.Swing(spec.heavy);
             AttackStarted?.Invoke(spec);
         }
 
@@ -186,16 +214,17 @@ namespace HunterAwakening
             bool punish = target.IsVulnerable;
             float quality = Mathf.Clamp01(0.4f + 0.4f * spacing + (punish ? 0.3f : 0f));
 
-            float strength = StatEffects.StrengthDamageFactor(P.GetAttribute(AttributeId.Strength));
+            float strength = StatEffects.StrengthDamageFactor(P.GetAttribute(AttributeId.Strength)) * P.StrainPenalty(BodyArea.Upper);
             float technique = 1f + 0.35f * Mathf.Clamp01(P.GetMastery(current.technique) / 100f);
             float execution = Mathf.Lerp(0.85f, 1.1f, quality);
             float nen = aura.OutgoingMultiplier;
             bool ambush = aura.ZetsuActive;
-            float damage = current.baseDamage * strength * technique * execution * nen * Mathf.Lerp(0.8f, 1f, P.Fatigue.Readiness)
-                           * (ambush ? (P.HasBreakthrough(Breakthroughs.ShadowStrike) ? 2f : StatEffects.ZetsuAmbushDamageMultiplier) : 1f);
-
             double maxOutput = P.GetAttribute(AttributeId.MaxOutput);
-            var hit = new HitInfo { damage = damage, technique = current.technique, heavy = current.heavy, ren = aura.RenActive, ambush = ambush };
+            float damage = current.baseDamage * strength * technique * execution * nen * Mathf.Lerp(0.8f, 1f, P.Fatigue.Readiness)
+                           * (ambush ? (P.HasBreakthrough(Breakthroughs.ShadowStrike) ? 2f : StatEffects.ZetsuAmbushDamageMultiplier) : 1f)
+                           * (currentIsKo ? StatEffects.KoDamageMultiplier(maxOutput) : 1f);
+
+            var hit = new HitInfo { damage = damage, technique = current.technique, heavy = current.heavy, ren = aura.RenActive || currentIsKo, ambush = ambush };
             if (ambush)
             {
                 aura.EndZetsu("Ambush from Zetsu!");
@@ -208,18 +237,42 @@ namespace HunterAwakening
                 hit.renStagger = StatEffects.RenStagger(maxOutput) * (current.heavy ? 1.6f : 1f);
                 hit.knockback = StatEffects.RenKnockback(maxOutput) * (current.heavy ? 1.5f : 1f);
             }
+            if (currentIsKo)
+            {
+                hit.renStagger = Mathf.Max(hit.renStagger, StatEffects.KoStagger);
+                hit.knockback *= 2f;
+            }
             var result = target.ReceiveHit(hit, out float dealt);
             if (result == HitResult.Guarded) quality *= 0.3f;
 
             P.ApplyMastery(current.technique, quality);
             if (aura.RenActive && result != HitResult.Guarded) P.ApplyMastery(TechniqueId.Ren, 0.7f);
-            Tracker?.RegisterPlayerHit(result, dealt, current.heavy, aura.RenActive, punish, hit.ambush);
+            Tracker?.RegisterPlayerHit(result, dealt, current.heavy, hit.ren, punish, hit.ambush);
 
+            Vector3 impactPoint = target.transform.position + Vector3.up * 0.4f;
+            if (currentIsKo)
+            {
+                P.ApplyMastery(TechniqueId.Ko, 1f);
+                HitFeedback.Impact(0.16f, 0.8f);
+                HitFeedback.SlowMotion(0.25f, 0.5f);
+                GameSession.Instance.PushNotice($"KO! {dealt:0} damage.", 2f);
+                ImpactEffects.Ko(impactPoint);
+                return;
+            }
             switch (result)
             {
-                case HitResult.GuardBroken: HitFeedback.Impact(0.1f, 0.45f); break;
-                case HitResult.Guarded: HitFeedback.Impact(0.02f, 0.1f); break;
-                default: HitFeedback.Impact((current.heavy ? 0.08f : 0.04f) + (hit.ren ? 0.03f : 0f), (current.heavy ? 0.3f : 0.15f) + (hit.ren ? 0.15f : 0f)); break;
+                case HitResult.GuardBroken:
+                    HitFeedback.Impact(0.1f, 0.45f);
+                    ImpactEffects.GuardBreak(impactPoint);
+                    break;
+                case HitResult.Guarded:
+                    HitFeedback.Impact(0.02f, 0.1f);
+                    ImpactEffects.Blocked(impactPoint);
+                    break;
+                default:
+                    HitFeedback.Impact((current.heavy ? 0.08f : 0.04f) + (hit.ren ? 0.03f : 0f), (current.heavy ? 0.3f : 0.15f) + (hit.ren ? 0.15f : 0f));
+                    ImpactEffects.Hit(impactPoint, current.heavy, hit.ren);
+                    break;
             }
         }
 
@@ -235,6 +288,7 @@ namespace HunterAwakening
                 tracker?.RegisterPerfectDodge();
                 GameSession.Instance.PushNotice("Perfect dodge!", 1f);
                 HitFeedback.SlowMotion(0.3f, 0.45f);
+                ImpactEffects.PerfectDodge(transform.position + Vector3.up * 0.3f);
                 PerfectDodged?.Invoke();
                 return;
             }
@@ -255,6 +309,7 @@ namespace HunterAwakening
                     GameSession.Instance.PushNotice("Parry! The rival is open.", 1.5f);
                     HitFeedback.Impact(0.12f, 0.3f);
                     HitFeedback.SlowMotion(0.4f, 0.4f);
+                    ImpactEffects.Parry(transform.position + transform.forward * 0.5f + Vector3.up * 0.5f);
                     Parried?.Invoke();
                     return;
                 }
@@ -272,8 +327,11 @@ namespace HunterAwakening
 
             bool tenWasActive = aura.TenActive;
             bool renWasActive = aura.RenActive;
+            bool kenWasActive = aura.KenActive;
             damage *= aura.IncomingMultiplier;
+            if (IsKoStrike) damage *= StatEffects.KoDamageTakenMultiplier; // every drop of aura is in the fist
             if (tenWasActive) P.ApplyMastery(TechniqueId.Ten, 0.5f);
+            if (kenWasActive) P.ApplyMastery(TechniqueId.Ken, 0.5f);
             damage *= 1f - StatEffects.DamageReduction(P.GetAttribute(AttributeId.Durability));
 
             // Ren protected this hit; the impact may still knock it loose for the next ones.
@@ -288,6 +346,8 @@ namespace HunterAwakening
             tracker?.RegisterPlayerDamaged(dealt, blocked, tenWasActive || renWasActive);
             if (!blocked && dealt > 0f) HitTaken?.Invoke();
             HitFeedback.Impact(blocked ? 0.03f : 0.06f, blocked ? 0.2f : 0.5f);
+            if (blocked) ImpactEffects.Blocked(transform.position + transform.forward * 0.4f + Vector3.up * 0.5f);
+            else ImpactEffects.PlayerHurt(transform.position + Vector3.up * 0.5f);
         }
 
         EnemyController NearestEnemy(float radius)
