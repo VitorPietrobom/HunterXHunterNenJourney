@@ -4,21 +4,24 @@ using UnityEngine;
 namespace HunterAwakening.EditorTools
 {
     /// <summary>
-    /// Imports the opponent characters as Humanoid. Each one is rigged on Mixamo (upload the prepared FBX, download
-    /// "FBX for Unity", T-pose, with skin) and saved as Rivals/&lt;Name&gt;/&lt;Name&gt;.fbx. Mixamo's skeleton matches the
-    /// Mixamo clips, so Unity's automatic Humanoid mapping is enough.
+    /// Imports the rigged characters (the player's Gon and the opponents) as Humanoid. Each is rigged by
+    /// Rivals/autorig.py.txt (or on Mixamo) with Mixamo bone names and saved as Rivals/&lt;Name&gt;/&lt;Name&gt;.fbx, so
+    /// Unity's automatic Humanoid mapping is enough.
     /// </summary>
     public static class RivalModelSetup
     {
         public const string Dir = "Assets/_Project/Art/Characters/Rivals";
 
-        /// <summary>Character, the tier it plays, and its in-game height (the player's Killua stands 1.9 m).</summary>
+        /// <summary>
+        /// Character, the tier it plays, and its height target (the player's Gon uses 2.0; heights are relative, so
+        /// Gon and Killua match and the older fighters tower over them).
+        /// </summary>
         public static readonly (string name, string tierId, float height)[] Characters =
         {
-            ("Gon", "rookie", 1.85f),
-            ("Kurapika", "rival", 2.05f),
-            ("Hisoka", "veteran", 2.25f),
-            ("Meruem", "elite", 2.6f),
+            ("Killua", "rookie", 2f),
+            ("Kurapika", "rival", 2.2f),
+            ("Hisoka", "veteran", 2.45f),
+            ("Meruem", "elite", 2.75f),
         };
 
         public static string ModelPath(string name) => $"{Dir}/{name}/{name}.fbx";

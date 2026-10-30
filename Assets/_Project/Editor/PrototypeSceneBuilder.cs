@@ -119,11 +119,11 @@ namespace HunterAwakening.EditorTools
             cc.center = Vector3.zero;
             cc.stepOffset = 0.3f;
             PrepareCharacterModel();
-            var model = AttachCharacterModel(player, cc);
+            var model = AttachPlayerModel(player, cc, out string playerCharacter);
             if (model != null)
             {
                 player.GetComponent<MeshRenderer>().enabled = false; // capsule stays as a fallback visual
-                ToonMaterials.Apply(model, "Killua");
+                ToonMaterials.Apply(model, playerCharacter);
                 var animation = player.AddComponent<PlayerAnimator>();
                 SetRef(animation, "animator", model.GetComponent<Animator>());
                 SetFloat(animation, "runClipSpeed", PlayerModelSetup.ClipSpeed("Run", 5.58f));
@@ -407,6 +407,20 @@ namespace HunterAwakening.EditorTools
             if (avatar == null || !avatar.isHuman) return;
             characterAvatar = avatar;
             characterAnimator = CreatePlayerController();
+        }
+
+        /// <summary>The player's fighter: one of the rigged characters in Rivals/ (falls back to the original Killua).</summary>
+        const string PlayerCharacter = "Gon";
+        const float PlayerCharacterHeight = 2f;
+
+        static GameObject AttachPlayerModel(GameObject player, CharacterController controller, out string character)
+        {
+            character = PlayerCharacter;
+            var avatar = characterAnimator != null ? RivalModelSetup.Configure(PlayerCharacter) : null;
+            if (avatar != null)
+                return AttachModel(player, controller, RivalModelSetup.ModelPath(PlayerCharacter), avatar, PlayerCharacterHeight, "Model");
+            character = "Killua";
+            return AttachCharacterModel(player, controller);
         }
 
         /// <summary>Adds the animated Killua model under a CharacterController host. Returns null if the model is unavailable.</summary>
