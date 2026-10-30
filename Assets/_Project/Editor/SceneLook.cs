@@ -36,7 +36,7 @@ namespace HunterAwakening.EditorTools
         static Light Sun()
         {
             Light sun = null;
-            foreach (var light in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
+            foreach (var light in Object.FindObjectsByType<Light>())
                 if (light.type == LightType.Directional) sun = light;
             if (sun == null) sun = new GameObject("Directional Light").AddComponent<Light>();
             sun.type = LightType.Directional;
@@ -220,10 +220,10 @@ namespace HunterAwakening.EditorTools
             return Color.Lerp(low, high, 0.65f * grain + 0.35f * drifts);
         }
 
-        delegate Color Pixel(float u, float v);
+        internal delegate Color Pixel(float u, float v);
 
         /// <param name="linear">Detail maps multiply by 2× their value, so 0.5 must stay 0.5 (no sRGB decoding).</param>
-        static Texture2D Texture(string name, int size, Pixel pixel, bool linear = false)
+        internal static Texture2D Texture(string name, int size, Pixel pixel, bool linear = false)
         {
             string path = $"{Dir}/{name}.png";
             var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
@@ -245,7 +245,7 @@ namespace HunterAwakening.EditorTools
         }
 
         // Tileable value noise: the lattice wraps every `period` cells, so the texture repeats seamlessly.
-        static float Fbm(float u, float v, int period, int octaves, int seed)
+        internal static float Fbm(float u, float v, int period, int octaves, int seed)
         {
             float sum = 0f, amplitude = 0.5f, norm = 0f;
             for (int i = 0; i < octaves; i++)
@@ -269,7 +269,7 @@ namespace HunterAwakening.EditorTools
             return Mathf.Lerp(Mathf.Lerp(a, b, fx), Mathf.Lerp(c, d, fx), fy);
         }
 
-        static float Hash(int x, int y, int period, int seed)
+        internal static float Hash(int x, int y, int period, int seed)
         {
             x = ((x % period) + period) % period;
             y = ((y % period) + period) % period;
@@ -291,7 +291,7 @@ namespace HunterAwakening.EditorTools
             var trunk = Mat("Trunk", new Color(0.32f, 0.22f, 0.14f), 0.1f);
             var leaves = new[] { Mat("Leaves", new Color(0.18f, 0.36f, 0.14f), 0.15f), Mat("LeavesLight", new Color(0.30f, 0.46f, 0.18f), 0.15f) };
             var pine = Mat("Pine", new Color(0.12f, 0.28f, 0.16f), 0.1f);
-            var rock = Mat("Rock", new Color(0.46f, 0.45f, 0.42f), 0.15f);
+            var rock = Mat("Rock", new Color(0.44f, 0.45f, 0.44f), 0.15f);
             var hill = Mat("Hill", new Color(0.24f, 0.34f, 0.22f), 0.05f);
             var cone = ConeMesh();
             var rockMesh = RockMesh();
@@ -446,40 +446,65 @@ namespace HunterAwakening.EditorTools
             return mesh;
         }
 
-        /// <summary>A jittered, flat-shaded icosahedron: a low-poly boulder.</summary>
-        static Mesh RockMesh()
+        /// <summary>
+        /// A boulder: an icosahedron subdivided twice, each vertex pushed in or out by layered noise for a lumpy,
+        /// weathered outline, then flat-shaded and flattened on the bottom so it sits on the ground.
+        /// </summary>
+        internal static Mesh RockMesh()
         {
-            string path = $"{Dir}/Rock.asset";
+            string path = $"{Dir}/Boulder.asset";
             var existing = AssetDatabase.LoadAssetAtPath<Mesh>(path);
             if (existing != null) return existing;
             float t = (1f + Mathf.Sqrt(5f)) / 2f;
-            var p = new[]
+            var points = new System.Collections.Generic.List<Vector3>
             {
                 new Vector3(-1, t, 0), new Vector3(1, t, 0), new Vector3(-1, -t, 0), new Vector3(1, -t, 0),
                 new Vector3(0, -1, t), new Vector3(0, 1, t), new Vector3(0, -1, -t), new Vector3(0, 1, -t),
                 new Vector3(t, 0, -1), new Vector3(t, 0, 1), new Vector3(-t, 0, -1), new Vector3(-t, 0, 1),
             };
-            int[] f =
+            for (int i = 0; i < points.Count; i++) points[i] = points[i].normalized;
+            var faces = new System.Collections.Generic.List<int>
             {
                 0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
                 3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1,
             };
-            var rng = new System.Random(7);
-            for (int i = 0; i < p.Length; i++)
+            for (int level = 0; level < 2; level++)
             {
-                var q = p[i].normalized * (0.5f + 0.12f * (float)rng.NextDouble());
-                p[i] = new Vector3(q.x, q.y * 0.7f, q.z); // boulders are wider than tall
+                var midpoints = new System.Collections.Generic.Dictionary<long, int>();
+                int Mid(int a, int b)
+                {
+                    long key = a < b ? ((long)a << 32) | (uint)b : ((long)b << 32) | (uint)a;
+                    if (midpoints.TryGetValue(key, out int m)) return m;
+                    points.Add(((points[a] + points[b]) * 0.5f).normalized);
+                    return midpoints[key] = points.Count - 1;
+                }
+                var next = new System.Collections.Generic.List<int>();
+                for (int i = 0; i < faces.Count; i += 3)
+                {
+                    int a = faces[i], b = faces[i + 1], c = faces[i + 2];
+                    int ab = Mid(a, b), bc = Mid(b, c), ca = Mid(c, a);
+                    next.AddRange(new[] { a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca });
+                }
+                faces = next;
             }
-            for (int i = 0; i < p.Length; i++) p[i].y = Mathf.Max(p[i].y, -0.25f); // flat-ish bottom sits on the ground
-            var verts = new Vector3[f.Length];
-            var tris = new int[f.Length];
-            for (int i = 0; i < f.Length; i++)
+            for (int i = 0; i < points.Count; i++)
             {
-                verts[i] = p[f[i]];
+                var n = points[i];
+                // Big lumps plus small chips; sampling the noise on the sphere keeps it seamless.
+                float lumps = Fbm(n.x * 0.5f + 0.5f, n.z * 0.5f + 0.5f + n.y * 0.25f, 3, 2, 131);
+                float chips = Fbm(n.y * 0.5f + 0.5f, n.x * 0.5f + 0.5f + n.z * 0.25f, 9, 2, 137);
+                var q = n * (0.42f + 0.16f * lumps + 0.05f * chips);
+                points[i] = new Vector3(q.x, Mathf.Max(q.y * 0.75f, -0.2f), q.z);
+            }
+            var verts = new Vector3[faces.Count];
+            var tris = new int[faces.Count];
+            for (int i = 0; i < faces.Count; i++)
+            {
+                verts[i] = points[faces[i]];
                 tris[i] = i;
             }
             OutwardWinding(verts, tris, Vector3.zero);
-            var mesh = new Mesh { name = "Rock", vertices = verts, triangles = tris };
+            var mesh = new Mesh { name = "Boulder", vertices = verts, triangles = tris };
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
             AssetDatabase.CreateAsset(mesh, path);

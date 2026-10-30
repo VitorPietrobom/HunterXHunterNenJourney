@@ -123,6 +123,7 @@ namespace HunterAwakening.EditorTools
             if (model != null)
             {
                 player.GetComponent<MeshRenderer>().enabled = false; // capsule stays as a fallback visual
+                ToonMaterials.Apply(model, "Killua");
                 var animation = player.AddComponent<PlayerAnimator>();
                 SetRef(animation, "animator", model.GetComponent<Animator>());
                 SetFloat(animation, "runClipSpeed", PlayerModelSetup.ClipSpeed("Run", 5.58f));
@@ -189,6 +190,7 @@ namespace HunterAwakening.EditorTools
             seat.transform.SetParent(bench.transform, true);
             SetString(rest, "displayName", "Rest Bench");
             SetRef(rest, "seatPoint", seat.transform);
+            StationProps.Bench(bench);
         }
 
         static void BuildLiftRack(Materials m, ExerciseDefinition def)
@@ -212,6 +214,7 @@ namespace HunterAwakening.EditorTools
             SetRef(drill, "definition", def);
             SetRef(drill, "barbell", barbell.transform);
             SetRef(drill, "standPoint", stand.transform);
+            StationProps.LiftRack(root.transform, barbell.transform);
         }
 
         static void BuildSprintCourse(Materials m, ExerciseDefinition def)
@@ -225,6 +228,7 @@ namespace HunterAwakening.EditorTools
                 var post = Prim(PrimitiveType.Cylinder, $"Checkpoint {i}", root.transform,
                     new Vector3(Mathf.Cos(a) * 14f, 1.5f, Mathf.Sin(a) * 8f), new Vector3(0.5f, 1.5f, 0.5f), m.Checkpoint, false);
                 checkpoints.Add(post.transform);
+                StationProps.SprintPost(post.transform);
             }
             var start = Prim(PrimitiveType.Cube, "Sprint Start", root.transform, new Vector3(14f, 0.05f, 0f), new Vector3(3f, 0.1f, 1f), m.Accent, false);
             var drill = start.AddComponent<SprintCourseDrill>();
@@ -246,12 +250,14 @@ namespace HunterAwakening.EditorTools
                 float z = (i / 3 - 1) * 2.6f;
                 var pad = Prim(PrimitiveType.Cylinder, $"Pad {i + 1}", root.transform, new Vector3(x, heights[i], z), new Vector3(1.6f, heights[i], 1.6f), m.Pad);
                 pads.Add(pad.transform);
+                StationProps.PadPlinth(pad.transform);
             }
             var console = Prim(PrimitiveType.Cube, "Precision Console", root.transform, new Vector3(0f, 0.5f, -5f), new Vector3(0.8f, 1f, 0.4f), m.Accent);
             var drill = console.AddComponent<PrecisionCourseDrill>();
             SetString(drill, "displayName", "Precision Pads");
             SetRef(drill, "definition", def);
             SetRefs(drill, "pads", pads);
+            StationProps.Signpost(console, m.Accent);
         }
 
         static void BuildAuraArea(Materials m, ExerciseDefinition def, ExerciseDefinition renDef)
@@ -264,6 +270,7 @@ namespace HunterAwakening.EditorTools
             SetInt(renDrill, "intensityLevel", 1);
             SetRef(renDrill, "definition", renDef);
             SetRef(renDrill, "standPoint", circleStand.transform);
+            StationProps.Seal(m.RenMat, new Color(1f, 0.55f, 0.2f));
 
             var stone = Prim(PrimitiveType.Cube, "Meditation Stone", null, new Vector3(-14f, 1.2f, -4f), new Vector3(1.4f, 2.4f, 1.4f), m.Stone);
             var kneel = Empty("KneelPoint", null, new Vector3(-14f, 1f, -5.8f), 0f);
@@ -272,6 +279,7 @@ namespace HunterAwakening.EditorTools
             SetString(awakening, "displayName", "Meditation Stone");
             SetFloat(awakening, "interactRadius", 3f);
             SetRef(awakening, "kneelPoint", kneel.transform);
+            StationProps.MeditationStone(stone);
 
             var mat = Prim(PrimitiveType.Cylinder, "Aura Mat", null, new Vector3(-14f, 0.03f, 3f), new Vector3(2.4f, 0.03f, 2.4f), m.AuraMat);
             var stand = Empty("StandPoint", null, new Vector3(-14f, 1.07f, 3f), 0f);
@@ -281,6 +289,7 @@ namespace HunterAwakening.EditorTools
             SetInt(drill, "intensityLevel", 1);
             SetRef(drill, "definition", def);
             SetRef(drill, "standPoint", stand.transform);
+            StationProps.Seal(m.AuraMat, new Color(0.3f, 0.9f, 1f));
         }
 
         static void BuildGyoStones(Materials m, ExerciseDefinition def)
@@ -311,6 +320,7 @@ namespace HunterAwakening.EditorTools
             SetRef(drill, "definition", def);
             SetRefs(drill, "stones", stones);
             SetRef(drill, "markLight", mark);
+            StationProps.Seal(m.Stone, new Color(0.6f, 0.75f, 1f));
         }
 
         static void BuildArena(Materials m, PlayerContext player, ExerciseDefinition sparringDef, ExerciseDefinition gyoDef)
@@ -351,6 +361,7 @@ namespace HunterAwakening.EditorTools
                 SetFloat(animation, "runClipSpeed", PlayerModelSetup.ClipSpeed("Run", 5.58f));
                 SetBool(controller, "tipOverOnDefeat", false);
                 ApplyRivalColours(model);
+                ToonMaterials.Apply(model, "KilluaRival");
                 AttachRivalModels(enemy, ecc, model.GetComponent<Animator>());
             }
             else
@@ -363,6 +374,8 @@ namespace HunterAwakening.EditorTools
             }
 
             var post = Prim(PrimitiveType.Cube, "Arena Post", root.transform, new Vector3(-11f, 1f, 2.5f), new Vector3(0.3f, 2f, 0.3f), m.Accent);
+            StationProps.Signpost(post, m.Accent);
+            StationProps.Arena(root.transform, 9f, m.Wall);
             var entry = Empty("EntryPoint", root.transform, new Vector3(-11f, 1f, 0f), 90f, local: true);
             var arena = post.AddComponent<ArenaController>();
             SetString(arena, "displayName", "Sparring Arena");
@@ -417,6 +430,7 @@ namespace HunterAwakening.EditorTools
                 var model = AttachModel(enemy, controller, RivalModelSetup.ModelPath(name), avatar, height, name);
                 if (model == null) continue;
                 model.SetActive(false);
+                ToonMaterials.Apply(model, name);
                 entries.Add(new RivalModels.Entry { tierId = tierId, model = model.GetComponent<Animator>() });
             }
             if (entries.Count == 0) return;
