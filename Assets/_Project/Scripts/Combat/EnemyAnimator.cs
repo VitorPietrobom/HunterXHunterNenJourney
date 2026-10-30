@@ -58,6 +58,16 @@ namespace HunterAwakening
 
         void OnDisable() => enemy.Staggered -= OnStaggered;
 
+        /// <summary>Drives a different model (opponent tiers have their own fighters); all share the same controller.</summary>
+        public void UseModel(Animator model)
+        {
+            if (model == null || model.runtimeAnimatorController == null || model == animator) return;
+            animator = model;
+            animator.applyRootMotion = false;
+            hasState = false; // the new model starts its state fresh
+            enabled = true;
+        }
+
         // Back-to-back staggers restart the reaction instead of holding its last frame.
         void OnStaggered() => Enter(State.HitReact, true);
 

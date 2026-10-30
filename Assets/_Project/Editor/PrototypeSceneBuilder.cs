@@ -350,6 +350,7 @@ namespace HunterAwakening.EditorTools
                 SetFloat(animation, "runClipSpeed", PlayerModelSetup.ClipSpeed("Run", 5.58f));
                 SetBool(controller, "tipOverOnDefeat", false);
                 ApplyRivalColours(model);
+                AttachRivalModels(enemy, ecc, model.GetComponent<Animator>());
             }
             else
             {
@@ -398,15 +399,42 @@ namespace HunterAwakening.EditorTools
         static GameObject AttachCharacterModel(GameObject host, CharacterController controller)
         {
             if (characterAvatar == null) return null;
+            return AttachModel(host, controller, PlayerModelSetup.ModelPath, characterAvatar, PlayerModelHeight, "Model");
+        }
 
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerModelSetup.ModelPath);
+        /// <summary>
+        /// Gives each opponent tier its own fighter when its Mixamo-rigged model is in Rivals/ (inactive until the
+        /// arena selects that tier). Tiers without one keep the default shadow Killua.
+        /// </summary>
+        static void AttachRivalModels(GameObject enemy, CharacterController controller, Animator defaultModel)
+        {
+            var entries = new List<RivalModels.Entry>();
+            foreach (var (name, tierId, height) in RivalModelSetup.Characters)
+            {
+                var avatar = RivalModelSetup.Configure(name);
+                if (avatar == null) continue;
+                var model = AttachModel(enemy, controller, RivalModelSetup.ModelPath(name), avatar, height, name);
+                if (model == null) continue;
+                model.SetActive(false);
+                entries.Add(new RivalModels.Entry { tierId = tierId, model = model.GetComponent<Animator>() });
+            }
+            if (entries.Count == 0) return;
+            enemy.AddComponent<RivalModels>().Configure(defaultModel, entries.ToArray());
+            Debug.Log($"[Hunter Awakening] Rival models: {string.Join(", ", entries.ConvertAll(e => $"{e.tierId}={e.model.name}"))}");
+        }
+
+        /// <summary>Instantiates a Humanoid model under a CharacterController host, scaled to the given height.</summary>
+        static GameObject AttachModel(GameObject host, CharacterController controller, string path, Avatar avatar, float height, string name)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (prefab == null) return null;
             var model = Object.Instantiate(prefab, host.transform);
-            model.name = "Model";
+            model.name = name;
             model.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
 
             var animator = model.GetComponent<Animator>();
             if (animator == null) animator = model.AddComponent<Animator>();
-            animator.avatar = characterAvatar;
+            animator.avatar = avatar;
             animator.applyRootMotion = false;
             animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             animator.runtimeAnimatorController = characterAnimator;
@@ -418,7 +446,7 @@ namespace HunterAwakening.EditorTools
                 return null;
             }
             var bounds = ModelBounds(renderers);
-            model.transform.localScale *= PlayerModelHeight / bounds.size.y;
+            model.transform.localScale *= height / bounds.size.y;
 
             // Humanoid clips put the soles at the model origin, so the origin goes on the ground: the controller's
             // bottom minus its skin width (the gap CharacterController keeps above the floor), centred on its axis.

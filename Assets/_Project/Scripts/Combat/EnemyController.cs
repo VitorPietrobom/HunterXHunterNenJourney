@@ -129,6 +129,7 @@ namespace HunterAwakening
             baseGuardChance = tier.baseGuardChance;
             damageReduction = tier.damageReduction;
             presence = tier.presence;
+            if (TryGetComponent(out RivalModels models)) models.Show(tier.id);
             health.SetMax(maxHealth, false);
             health.RestoreFull();
         }

@@ -37,7 +37,7 @@ namespace HunterAwakening
         {
             if (!resting) return;
             resting = false;
-            Session.IsResting = false;
+            if (Session != null) Session.IsResting = false; // may already be gone when the scene unloads
             if (player != null)
             {
                 player.Motor.SetLocked(false);
