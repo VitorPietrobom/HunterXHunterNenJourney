@@ -67,6 +67,7 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 - [x] ⚠️ **Aura visuals**: aura flows off the body — a flame shell on a copy of the character's skinned meshes plus flames streaming up from every limb (custom URP shaders in `Resources/Shaders`). Ten is a calm blue shroud, Ren roars orange and erupts when raised, Ken is dense violet, Gyo glows at the eyes, a broken Ren sputters out red. **Ren grows with training** (Ren presence: Max Output + Ren mastery, 1× → 3.5×). *Tune in play; check the fps cost of the shell meshes.*
 - [ ] ◻️ Dedicated Zetsu drill (today Zetsu trains only in sparring).
 - [ ] ◻️ **Affinity discovery** test (GDD §7.1).
+- [x] ⚠️ **Jajanken — Rock** (Gon's first Hatsu): hold V to chant "Saisho wa guu… Jan… Ken…" (rooted, aura drains, ×1.35 damage taken, a hit scatters the charge, rivals press harder), release for a punch up to ~5× a heavy that breaks guard, staggers and launches; finishing the chant adds a ×1.25 vow bonus. Unlocks with Ko + Ren mastery 50; mastery shortens the chant (2.4 s → 1.3 s) and at 30 a hit only halves the charge. *Playtest the numbers; Paper (ranged) and Scissors (blade) next.*
 - [ ] ◻️ **Hatsu builder**: data-driven core effect + activation condition + cost + counterplay + enforceable vow (GDD §7.4). Start with one tested ability (e.g. *Binding Current*).
 
 ## ⭐ Combat

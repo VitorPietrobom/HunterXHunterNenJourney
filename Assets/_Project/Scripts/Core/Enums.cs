@@ -33,7 +33,9 @@ namespace HunterAwakening
         Zetsu,
         Gyo,
         Ken,
-        Ko
+        Ko,
+        /// <summary>Gon's Hatsu, Rock: a chanted, charged punch.</summary>
+        Jajanken
     }
 
     public enum BodyArea { None, Upper, Lower }

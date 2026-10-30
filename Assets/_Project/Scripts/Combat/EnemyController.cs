@@ -310,7 +310,8 @@ namespace HunterAwakening
                 intimidationAnnounced = true;
                 GameSession.Instance.PushNotice($"The {displayName} hesitates before your Ren.", 2.5f);
             }
-            cooldown -= dt * (Intimidated ? 0.4f : 1f);
+            // A chanting Jajanken user is rooted and open: rivals rush to punish it.
+            cooldown -= dt * (Intimidated ? 0.4f : 1f) * (player.IsChargingRock ? 1.8f : 1f);
 
             FaceTowards(player.transform.position, 540f * dt);
             if (distance > attackRange * 0.85f)

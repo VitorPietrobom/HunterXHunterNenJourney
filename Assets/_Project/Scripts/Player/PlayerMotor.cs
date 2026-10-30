@@ -134,7 +134,8 @@ namespace HunterAwakening
             }
 
             if (controller.isGrounded && verticalVelocity < 0f) verticalVelocity = -2f;
-            if (!blocked && input.JumpPressed && controller.isGrounded && !IsDodging && vitals.TrySpend(jumpStaminaCost))
+            if (!blocked && input.JumpPressed && controller.isGrounded && !IsDodging && (combat == null || !combat.IsChargingRock)
+                && vitals.TrySpend(jumpStaminaCost))
             {
                 verticalVelocity = Mathf.Sqrt(2f * StatEffects.JumpHeight(p.GetAttribute(AttributeId.Mobility)) * -gravity);
                 Jumped?.Invoke();

@@ -57,6 +57,9 @@ namespace HunterAwakening
         [SerializeField] int maxShellVertices = 60000;
 
         AuraController aura;
+        PlayerCombat combat;
+        Transform hand;
+        float fistDebt;
         readonly List<SkinnedMeshRenderer> shells = new List<SkinnedMeshRenderer>();
         readonly List<Segment> segments = new List<Segment>();
         float totalWeight;
@@ -78,7 +81,17 @@ namespace HunterAwakening
         static readonly int TurbulenceId = Shader.PropertyToID("_Turbulence");
         static readonly int FlashId = Shader.PropertyToID("_Flash");
 
-        void Awake() => aura = GetComponent<AuraController>();
+        void Awake()
+        {
+            aura = GetComponent<AuraController>();
+            combat = GetComponent<PlayerCombat>();
+            if (combat != null) combat.RockReleased += OnRockReleased;
+        }
+
+        void OnDestroy()
+        {
+            if (combat != null) combat.RockReleased -= OnRockReleased;
+        }
 
         void Start()
         {
@@ -130,6 +143,7 @@ namespace HunterAwakening
 
             Transform B(HumanBodyBones bone) => animator.GetBoneTransform(bone);
             head = B(HumanBodyBones.Head);
+            hand = B(HumanBodyBones.RightHand);
             Transform chest = B(HumanBodyBones.UpperChest) ?? B(HumanBodyBones.Chest);
             AddSegment(B(HumanBodyBones.Hips), B(HumanBodyBones.Spine), Vector3.zero, 0.13f);
             AddSegment(B(HumanBodyBones.Spine), chest, Vector3.zero, 0.14f);
@@ -247,6 +261,7 @@ namespace HunterAwakening
             EmitOverTime(flames, ref flameDebt, current.rate, dt, current.speed, current.size, current.life, hot, 0.25f);
             EmitOverTime(streaks, ref streakDebt, current.streakRate, dt, current.speed * 1.6f, current.size * 0.6f, current.life * 0.8f, hot, 0.1f);
             if (look == AuraLook.Gyo) EmitEyes(dt, color);
+            if (combat != null && combat.IsChargingRock) EmitFist(dt, combat.RockCharge, color);
         }
 
         static Look TargetLook(AuraLook look, float presence, float strength)
@@ -342,6 +357,47 @@ namespace HunterAwakening
 
         /// <summary>A broken Ren: red aura scatters off the body.</summary>
         void Shatter() => EmitFromBody(streaks, 40, 0.5f, 0.1f, 0.35f, aura.LookColor, 3.5f);
+
+        Vector3 FistPosition => hand != null ? hand.position : transform.position + transform.forward * 0.5f + Vector3.up * 1.1f;
+
+        /// <summary>Jajanken: aura pours into the fist, a swelling, white-hot knot as the chant nears its end.</summary>
+        void EmitFist(float dt, float charge, Color color)
+        {
+            fistDebt += (40f + 260f * charge) * dt;
+            int count = (int)fistDebt;
+            fistDebt -= count;
+            var p = new ParticleSystem.EmitParams { startColor = Color.Lerp(color, Color.white, 0.25f + 0.5f * charge) };
+            Vector3 fist = FistPosition;
+            for (int i = 0; i < count; i++)
+            {
+                // Spawn around the fist and drift inward and up, so the aura reads as being drawn in.
+                Vector3 offset = Random.onUnitSphere * (0.12f + 0.25f * charge);
+                p.position = fist + offset;
+                p.velocity = -offset * 2.5f + Vector3.up * 0.3f;
+                p.startSize = 0.05f + 0.18f * charge;
+                p.startLifetime = 0.3f;
+                flames.Emit(p, 1);
+            }
+        }
+
+        /// <summary>Rock is thrown: the gathered aura bursts from the fist.</summary>
+        void OnRockReleased(float charge)
+        {
+            if (!ready) return;
+            flash = Mathf.Max(flash, charge);
+            var p = new ParticleSystem.EmitParams { startColor = Color.Lerp(aura.LookColor, Color.white, 0.4f) };
+            Vector3 fist = FistPosition;
+            int count = Mathf.RoundToInt(30 + 70 * charge);
+            for (int i = 0; i < count; i++)
+            {
+                Vector3 dir = (transform.forward + Random.insideUnitSphere * 0.8f).normalized;
+                p.position = fist;
+                p.velocity = dir * (2f + 5f * charge);
+                p.startSize = 0.08f + 0.2f * charge;
+                p.startLifetime = 0.35f;
+                streaks.Emit(p, 1);
+            }
+        }
 
         /// <summary>Gyo: aura gathers in the eyes.</summary>
         void EmitEyes(float dt, Color color)

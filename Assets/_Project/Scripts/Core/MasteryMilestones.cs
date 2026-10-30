@@ -19,12 +19,14 @@ namespace HunterAwakening
         public const float GyoCheap = 30f;
         public const float KenCheap = 30f;
         public const float KoCheap = 30f;
+        public const float JajankenSteady = 30f;
 
         // Unlock thresholds for the advanced applications (checked by AuraController).
         public const float KenUnlockTenMastery = 25f;
         public const float KenUnlockRenMastery = 25f;
         public const float KoUnlockRenMastery = 40f;
         public const double KoUnlockMaxOutput = 18;
+        public const float JajankenUnlockRenMastery = 50f;
 
         public readonly struct Milestone
         {
@@ -47,6 +49,7 @@ namespace HunterAwakening
             { TechniqueId.Gyo, new[] { new Milestone(GyoCheap, "Gyo drains a third less aura") } },
             { TechniqueId.Ken, new[] { new Milestone(KenCheap, "Ken drains 25% less aura") } },
             { TechniqueId.Ko, new[] { new Milestone(KoCheap, "Ko costs 25% of your reserve instead of 35%") } },
+            { TechniqueId.Jajanken, new[] { new Milestone(JajankenSteady, "A hit mid-chant only halves the charge instead of scattering it") } },
         };
 
         public static IReadOnlyList<Milestone> For(TechniqueId id) =>

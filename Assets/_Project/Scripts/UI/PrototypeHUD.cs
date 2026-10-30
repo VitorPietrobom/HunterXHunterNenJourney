@@ -49,6 +49,7 @@ namespace HunterAwakening
 
             DrawWorldLabels();
             DrawVitals(session);
+            DrawChant();
             DrawPrompt();
             DrawNotices(session);
             if (session.ShowHelp) DrawHelp();
@@ -92,6 +93,7 @@ namespace HunterAwakening
                 var a = player.Aura;
                 string mode = a.ZetsuActive ? " · ZETSU" : a.RenBroken ? " · REN BROKEN" : a.KenActive ? " · KEN" : a.RenActive ? " · REN" : a.TenActive ? " · TEN" : "";
                 if (a.CanKo) mode += " · F: KO";
+                if (a.JajankenUnlocked) mode += " · V: ROCK";
                 if (a.GyoActive) mode += " · GYO";
                 HudGui.Bar(new Rect(x, y, w, h), player.Aura.Current / Mathf.Max(1f, player.Aura.Capacity), new Color(0.4f, 0.8f, 1f),
                     $"Aura {player.Aura.Current:0}/{player.Aura.Capacity:0}{mode}");
@@ -127,6 +129,8 @@ namespace HunterAwakening
                 return "Beat the Veteran Hunter — choose it at the arena post with ] .";
             if (!p.KnowsInsight(AuraController.KoInsight))
                 return $"Learn Ko: Ren mastery 40 and Max Output 18 from the Ren Circle (Ren {p.GetMastery(TechniqueId.Ren):0}, Max Output {p.GetAttribute(AttributeId.MaxOutput):0.0}).";
+            if (!p.KnowsInsight(AuraController.JajankenInsight))
+                return $"Learn Jajanken: Ren mastery 50 (Ren {p.GetMastery(TechniqueId.Ren):0}) — keep fighting with Ren up and training at the Ren Circle.";
             if (p.BestSparringTime("elite") <= 0f)
                 return "Defeat the Elite Nen User.";
             int left = 0;
@@ -135,6 +139,19 @@ namespace HunterAwakening
             return left > 0
                 ? $"Hunt the remaining breakthroughs (Tab → Breakthroughs): {left} left."
                 : "You've conquered the sandbox. Keep pushing — no attribute has a cap.";
+        }
+
+        /// <summary>Jajanken: the chant's progress, centred low on screen while it builds.</summary>
+        void DrawChant()
+        {
+            var c = player.Combat;
+            if (!c.IsChargingRock) return;
+            const float w = 320f, h = 24f;
+            var r = new Rect((Screen.width - w) / 2f, Screen.height * 0.72f, w, h);
+            float charge = c.RockCharge;
+            string stage = charge >= 1f ? "GUU — release!" : charge >= 2f / 3f ? "Ken…" : charge >= StatEffects.JajankenMinCharge ? "Jan…" : "Saisho wa guu!";
+            HudGui.Panel(new Rect(r.x - 6f, r.y - 6f, w + 12f, h + 12f));
+            HudGui.Bar(r, charge, charge >= 1f ? new Color(1f, 0.85f, 0.3f) : new Color(1f, 0.55f, 0.15f), $"Jajanken — {stage}");
         }
 
         void DrawWorldLabels()
@@ -209,7 +226,7 @@ namespace HunterAwakening
                 "WASD move · Mouse look · Shift sprint · Space jump · Ctrl dodge\n" +
                 "LMB light · RMB heavy · Q block (tap just before a hit to parry)\n" +
                 "E interact · [ / ] drill intensity · Space/LMB drill action\n" +
-                "T Ten · hold R Ren · Z Zetsu · hold G Gyo · Ten+Ren Ken · F Ko (once learned)\n" +
+                "T Ten · hold R Ren · Z Zetsu · hold G Gyo · Ten+Ren Ken · F Ko · hold V Jajanken: Rock (once learned)\n" +
                 "Tab dashboard · Esc pause/settings · F5 save · F9 reload · F1 hide";
             var r = new Rect(Screen.width - 476f, 16f, 460f, 112f);
             HudGui.Panel(r);

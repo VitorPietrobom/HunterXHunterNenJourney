@@ -98,6 +98,17 @@ namespace HunterAwakening.Tests
         }
 
         [Test]
+        public void Jajanken_PowerGrowsWithTheChantAndMastery()
+        {
+            Assert.Less(StatEffects.JajankenChargeTime(100f), StatEffects.JajankenChargeTime(0f), "mastery shortens the chant");
+            Assert.Greater(StatEffects.JajankenDamageMultiplier(0.9f, 10, 0f), StatEffects.JajankenDamageMultiplier(0.5f, 10, 0f));
+            Assert.Greater(StatEffects.JajankenDamageMultiplier(1f, 10, 0f), StatEffects.JajankenDamageMultiplier(0.99f, 10, 0f) * 1.2f,
+                "completing the chant adds the vow's burst");
+            Assert.Greater(StatEffects.JajankenDamageMultiplier(1f, 10, 100f), StatEffects.JajankenDamageMultiplier(1f, 10, 0f));
+            Assert.LessOrEqual(StatEffects.JajankenDamageMultiplier(1f, 1e9, 1e6f), 9f);
+        }
+
+        [Test]
         public void Ren_PresenceGrowsWithTrainingAndIsCapped()
         {
             Assert.AreEqual(1f, StatEffects.RenPresence(10, 0), 1e-4f);

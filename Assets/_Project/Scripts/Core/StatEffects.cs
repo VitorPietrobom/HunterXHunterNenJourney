@@ -89,6 +89,24 @@ namespace HunterAwakening
         public const float KoDamageTakenMultiplier = 1.8f;
         public const float KoStagger = 1.3f;
 
+        // Jajanken (Rock): Gon's Hatsu. Power grows with each word of the chant; the chant roots you and leaves you open.
+        // Mastery shortens the chant and raises the ceiling; completing it is the vow that adds the final burst.
+        public static float JajankenChargeTime(float mastery) => Mathf.Lerp(2.4f, 1.3f, Mathf.Clamp01(mastery / 100f));
+        public static float JajankenAuraPerSecond(double maxOutput) => 10f * (1f + 0.4f * G(maxOutput));
+        /// <summary>Charge below this ("Saisho wa guu" alone) gathers nothing; releasing cancels.</summary>
+        public const float JajankenMinCharge = 0.34f;
+        public const float JajankenChantDamageTakenMultiplier = 1.35f;
+        public const float JajankenFullChantBonus = 1.25f;
+
+        public static float JajankenDamageMultiplier(float charge, double maxOutput, float mastery)
+        {
+            charge = Mathf.Clamp01(charge);
+            float ceiling = 3.5f + 0.8f * G(maxOutput) + 1.2f * Mathf.Clamp01(mastery / 100f);
+            float multiplier = Mathf.Lerp(1.6f, ceiling, charge * charge);
+            if (charge >= 0.999f) multiplier *= JajankenFullChantBonus;
+            return Mathf.Min(multiplier, 9f);
+        }
+
         /// <summary>Highest output (0..1 of the Ren Circle meter) the player can hold before Ren destabilises.</summary>
         public static float RenControlCeiling(double control) => Mathf.Clamp(0.7f + 0.08f * G(control), 0.7f, 0.97f);
         /// <summary>Output level (0..1) that is a comfortable challenge for the player's Max Output.</summary>

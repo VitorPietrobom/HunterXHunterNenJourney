@@ -57,6 +57,10 @@ namespace HunterAwakening
         public const string KoInsight = "technique:ko";
         public bool KenUnlocked => P.KnowsInsight(KenInsight);
         public bool KoUnlocked => P.KnowsInsight(KoInsight);
+        public const string JajankenInsight = "hatsu:jajanken";
+        public bool JajankenUnlocked => P.KnowsInsight(JajankenInsight);
+        /// <summary>Set by PlayerCombat while the Jajanken chant builds (0..1): the aura swells toward Rock.</summary>
+        public float HatsuCharge { get; set; }
         /// <summary>Ten and Ren held together as one stance (once learned).</summary>
         public bool KenActive => TenActive && RenActive && KenUnlocked;
         /// <summary>Ko can be thrown: learned and Ren is up.</summary>
@@ -152,6 +156,9 @@ namespace HunterAwakening
             if (!KoUnlocked && P.GetMastery(TechniqueId.Ren) >= MasteryMilestones.KoUnlockRenMastery
                             && MaxOutput >= MasteryMilestones.KoUnlockMaxOutput)
                 P.UnlockInsight(KoInsight, "Ko", "With Ren up, press F to pour all your aura into one strike — devastating, expensive, and defenceless while thrown.");
+            if (!JajankenUnlocked && KoUnlocked && P.GetMastery(TechniqueId.Ren) >= MasteryMilestones.JajankenUnlockRenMastery)
+                P.UnlockInsight(JajankenInsight, "Jajanken — Rock",
+                    "Your first Hatsu. Hold V to chant \"Saisho wa guu… Jan… Ken…\" and release for Rock: the longer the chant, the harder the punch, and finishing it adds a final burst. The chant roots you and leaves you open — a hit scatters the power.");
         }
 
         /// <summary>Leaves Zetsu (e.g. after striking from hiding).</summary>
@@ -233,7 +240,7 @@ namespace HunterAwakening
                     session.PushNotice("Aura depleted! Ten, Ren and Gyo dropped.", 3f);
                 }
             }
-            if (!RenActive && DrillGlow <= 0f)
+            if (!RenActive && DrillGlow <= 0f && HatsuCharge <= 0f)
             {
                 float recovery = StatEffects.AuraRecovery(P.GetAttribute(AttributeId.RecoveryRate))
                                  * (TenActive ? 0.3f : 1f) * (ZetsuActive ? StatEffects.ZetsuAuraRecoveryMultiplier : 1f);
@@ -268,14 +275,17 @@ namespace HunterAwakening
         void UpdateVisual()
         {
             bool drillRen = DrillGlow > 0.05f;
+            bool chant = HatsuCharge > 0.01f;
             Look = ZetsuActive || !Awakened ? AuraLook.None
                  : lockoutTimer > renLockout - 0.6f ? AuraLook.Broken // a short sputter, then whatever is still held
                  : KenActive ? AuraLook.Ken
-                 : RenActive || drillRen ? AuraLook.Ren
+                 : RenActive || drillRen || chant ? AuraLook.Ren
                  : TenActive ? AuraLook.Ten
                  : GyoActive ? AuraLook.Gyo
                  : AuraLook.None;
-            LookStrength = Look == AuraLook.Ren && !RenActive ? DrillGlow : 1f;
+            LookStrength = Look == AuraLook.Ren && !RenActive
+                ? Mathf.Max(DrillGlow, chant ? 0.35f + 0.65f * HatsuCharge : 0f)
+                : 1f;
             LookColor = Look switch
             {
                 AuraLook.Broken => brokenColor,
@@ -296,7 +306,7 @@ namespace HunterAwakening
             {
                 AuraLook.Broken => 1.5f,
                 AuraLook.Ken => 3.5f * Mathf.Sqrt(presence),
-                AuraLook.Ren => (RenActive ? 3.5f : 1.5f + 2.5f * DrillGlow) * Mathf.Sqrt(presence),
+                AuraLook.Ren => (RenActive ? 3.5f : 1.5f + 2.5f * LookStrength) * Mathf.Sqrt(presence),
                 AuraLook.Ten => 2.5f,
                 _ => 1.2f
             };

@@ -51,6 +51,12 @@ namespace HunterAwakening
             name = "Heavy", technique = TechniqueId.HeavyAttack, heavy = true, startup = 0.45f, active = 0.12f, recovery = 0.55f,
             baseDamage = 20f, staminaCost = 20f, range = 2.1f, moveMultiplier = 0.1f
         };
+        [Tooltip("Jajanken — Rock: the punch released at the end of the chant (power comes from the charge).")]
+        [SerializeField] AttackSpec rockAttack = new AttackSpec
+        {
+            name = "Rock", technique = TechniqueId.Jajanken, heavy = true, startup = 0.1f, active = 0.12f, recovery = 0.7f,
+            baseDamage = 20f, staminaCost = 25f, range = 2.4f, moveMultiplier = 0f
+        };
         [SerializeField] float blockDamageMultiplier = 0.3f;
         [SerializeField] float blockStaminaPerHit = 14f;
         [SerializeField] float parryWindow = 0.18f;
@@ -72,6 +78,21 @@ namespace HunterAwakening
         /// <summary>The current attack is a Ko strike (all aura in one fist).</summary>
         public bool IsKoStrike => IsAttacking && currentIsKo;
         bool currentIsKo;
+
+        /// <summary>The Jajanken chant is building (rooted, open to punishment).</summary>
+        public bool IsChargingRock { get; private set; }
+        /// <summary>0..1: how much of the chant is complete.</summary>
+        public float RockCharge { get; private set; }
+        /// <summary>Seconds a full chant takes at the current Jajanken mastery.</summary>
+        public float RockChargeTime { get; private set; } = 2.4f;
+        /// <summary>The current attack is a released Rock.</summary>
+        public bool IsRockStrike => IsAttacking && currentIsRock;
+        /// <summary>Raised when Rock is thrown, with the charge it carries.</summary>
+        public event Action<float> RockReleased;
+        bool currentIsRock;
+        float rockCharge;
+        int chantStage;
+        static readonly string[] Chant = { "Saisho wa guu!", "Jan…", "Ken…", "— everything into the fist!" };
         /// <summary>Wind-up time of the current attack, after fatigue.</summary>
         public float StartupDuration { get; private set; }
         /// <summary>Active + recovery time of the current attack, after mastery and fatigue.</summary>
@@ -113,6 +134,7 @@ namespace HunterAwakening
         void OnDodged()
         {
             if (IsAttacking) CurrentPhase = Phase.None;
+            if (IsChargingRock) CancelChant("You broke off the chant.");
         }
 
         void Update()
@@ -120,17 +142,19 @@ namespace HunterAwakening
             bool blocked = GameSession.Instance.InputBlocked || motor.Locked || IsDefeated;
 
             if (!blocked && input.BlockPressed) blockPressedTime = Time.time;
-            IsBlocking = !blocked && input.BlockHeld && CurrentPhase == Phase.None && !motor.IsDodging && !vitals.IsExhausted;
+            IsBlocking = !blocked && input.BlockHeld && CurrentPhase == Phase.None && !IsChargingRock && !motor.IsDodging && !vitals.IsExhausted;
 
-            if (!blocked && CurrentPhase == Phase.None && !motor.IsDodging)
+            if (IsChargingRock) TickChant(Time.deltaTime, blocked);
+            else if (!blocked && CurrentPhase == Phase.None && !motor.IsDodging)
             {
                 if (input.LightPressed) Begin(lightAttack);
                 else if (input.HeavyPressed) Begin(heavyAttack);
                 else if (input.KoPressed) TryKo();
+                else if (input.HatsuPressed) TryChant();
             }
 
             if (IsAttacking) AdvancePhase(Time.deltaTime);
-            motor.MoveMultiplier = IsAttacking ? current.moveMultiplier : IsBlocking ? 0.45f : 1f;
+            motor.MoveMultiplier = IsChargingRock ? 0f : IsAttacking ? current.moveMultiplier : IsBlocking ? 0.45f : 1f;
         }
 
         void TryKo()
@@ -155,7 +179,99 @@ namespace HunterAwakening
             Begin(heavyAttack, true);
         }
 
-        void Begin(AttackSpec spec, bool ko = false)
+        // ------------------------------------------------------------------ Jajanken: Rock
+
+        void TryChant()
+        {
+            if (!aura.JajankenUnlocked) return;
+            var session = GameSession.Instance;
+            if (aura.ZetsuActive)
+            {
+                session.PushNotice("Zetsu has sealed your aura — there is nothing to gather.", 2f);
+                return;
+            }
+            if (vitals.Stamina < rockAttack.staminaCost)
+            {
+                session.PushNotice("Not enough stamina for Rock.", 1.5f);
+                return;
+            }
+            if (aura.Current < 10f)
+            {
+                session.PushNotice("Not enough aura for Rock.", 1.5f);
+                return;
+            }
+            IsChargingRock = true;
+            RockCharge = 0f;
+            chantStage = 0;
+            RockChargeTime = StatEffects.JajankenChargeTime(P.GetMastery(TechniqueId.Jajanken));
+            var target = NearestEnemy(engageRadius);
+            if (target != null) motor.FaceTowards(target.transform.position);
+            session.PushNotice(Chant[0], 1.2f);
+        }
+
+        void TickChant(float dt, bool blocked)
+        {
+            if (blocked)
+            {
+                CancelChant(null);
+                return;
+            }
+            if (!input.HatsuHeld)
+            {
+                ReleaseRock();
+                return;
+            }
+            float drain = StatEffects.JajankenAuraPerSecond(P.GetAttribute(AttributeId.MaxOutput)) * dt;
+            if (!aura.TrySpend(drain))
+            {
+                CancelChant("Your aura ran dry — the chant collapses.");
+                return;
+            }
+            RockCharge = Mathf.Min(1f, RockCharge + dt / RockChargeTime);
+            aura.HatsuCharge = RockCharge;
+            P.AddExertion(0.6f * dt);
+            int stage = RockCharge >= 1f ? 3 : RockCharge >= 2f / 3f ? 2 : RockCharge >= StatEffects.JajankenMinCharge ? 1 : 0;
+            if (stage > chantStage)
+            {
+                chantStage = stage;
+                GameSession.Instance.PushNotice(Chant[stage], stage == 3 ? 2f : 1.2f);
+                if (stage == 3) HitFeedback.Shake(0.12f);
+            }
+            var target = NearestEnemy(engageRadius);
+            if (target != null) motor.FaceTowards(target.transform.position);
+        }
+
+        void ReleaseRock()
+        {
+            float charge = RockCharge;
+            EndChant();
+            if (charge < StatEffects.JajankenMinCharge)
+            {
+                GameSession.Instance.PushNotice("Too soon — the chant gathered nothing.", 1.5f);
+                return;
+            }
+            rockCharge = charge;
+            Begin(rockAttack, rock: true);
+            if (!IsAttacking) return; // no stamina left to throw it
+            GameSession.Instance.PushNotice(charge >= 1f ? "GUU!!" : "Guu!", 1.5f);
+            RockReleased?.Invoke(charge);
+        }
+
+        /// <summary>A hit, a dodge or running dry breaks the chant; the aura already spent is gone.</summary>
+        void CancelChant(string notice)
+        {
+            EndChant();
+            if (notice != null) GameSession.Instance.PushNotice(notice, 2f);
+        }
+
+        void EndChant()
+        {
+            IsChargingRock = false;
+            RockCharge = 0f;
+            aura.HatsuCharge = 0f;
+        }
+
+        void Begin(AttackSpec spec, bool ko = false, bool rock = false)
         {
             if (!vitals.TrySpend(spec.staminaCost))
             {
@@ -167,9 +283,11 @@ namespace HunterAwakening
 
             current = spec;
             currentIsKo = ko;
+            currentIsRock = rock;
             CurrentPhase = Phase.Startup;
             float performance = P.Fatigue.PerformanceMultiplier * aura.AttackSpeedMultiplier;
-            StartupDuration = spec.startup / performance * (ko ? 1.3f : 1f); // gathering everything into the fist takes a moment
+            // Gathering everything into the fist takes Ko a moment; Rock gathered it during the chant.
+            StartupDuration = spec.startup / performance * (ko ? 1.3f : 1f);
             // Mastery shortens recovery; fatigue lengthens it.
             float masteryCut = Mathf.Lerp(1f, 0.6f, Mathf.Clamp01(P.GetMastery(spec.technique) / 100f));
             recoveryDuration = spec.recovery * masteryCut / performance;
@@ -222,9 +340,10 @@ namespace HunterAwakening
             double maxOutput = P.GetAttribute(AttributeId.MaxOutput);
             float damage = current.baseDamage * strength * technique * execution * nen * Mathf.Lerp(0.8f, 1f, P.Fatigue.Readiness)
                            * (ambush ? (P.HasBreakthrough(Breakthroughs.ShadowStrike) ? 2f : StatEffects.ZetsuAmbushDamageMultiplier) : 1f)
-                           * (currentIsKo ? StatEffects.KoDamageMultiplier(maxOutput) : 1f);
+                           * (currentIsKo ? StatEffects.KoDamageMultiplier(maxOutput) : 1f)
+                           * (currentIsRock ? StatEffects.JajankenDamageMultiplier(rockCharge, maxOutput, P.GetMastery(TechniqueId.Jajanken)) : 1f);
 
-            var hit = new HitInfo { damage = damage, technique = current.technique, heavy = current.heavy, ren = aura.RenActive || currentIsKo, ambush = ambush };
+            var hit = new HitInfo { damage = damage, technique = current.technique, heavy = current.heavy, ren = aura.RenActive || currentIsKo || currentIsRock, ambush = ambush };
             if (ambush)
             {
                 aura.EndZetsu("Ambush from Zetsu!");
@@ -242,6 +361,11 @@ namespace HunterAwakening
                 hit.renStagger = Mathf.Max(hit.renStagger, StatEffects.KoStagger);
                 hit.knockback *= 2f;
             }
+            if (currentIsRock)
+            {
+                hit.renStagger = Mathf.Max(hit.renStagger, StatEffects.KoStagger * (0.6f + 0.5f * rockCharge));
+                hit.knockback *= 1f + 1.5f * rockCharge;
+            }
             var result = target.ReceiveHit(hit, out float dealt);
             if (result == HitResult.Guarded) quality *= 0.3f;
 
@@ -250,6 +374,17 @@ namespace HunterAwakening
             Tracker?.RegisterPlayerHit(result, dealt, current.heavy, hit.ren, punish, hit.ambush);
 
             Vector3 impactPoint = target.transform.position + Vector3.up * 0.4f;
+            if (currentIsRock)
+            {
+                P.ApplyMastery(TechniqueId.Jajanken, rockCharge);
+                P.ApplyMastery(TechniqueId.Ren, 0.5f);
+                bool full = rockCharge >= 1f;
+                HitFeedback.Impact(0.1f + 0.1f * rockCharge, 0.5f + 0.6f * rockCharge);
+                if (full) HitFeedback.SlowMotion(0.3f, 0.45f);
+                GameSession.Instance.PushNotice(full ? $"ROCK! {dealt:0} damage — the full chant." : $"Rock! {dealt:0} damage.", 2f);
+                ImpactEffects.Ko(impactPoint);
+                return;
+            }
             if (currentIsKo)
             {
                 P.ApplyMastery(TechniqueId.Ko, 1f);
@@ -323,6 +458,22 @@ namespace HunterAwakening
             else if (motor.IsDodging)
             {
                 P.ApplyMastery(TechniqueId.Dodge, 0.2f); // mistimed dodge still teaches something
+            }
+
+            if (IsChargingRock)
+            {
+                // The chant leaves the body open: the hit lands harder and shakes the gathered power loose.
+                damage *= StatEffects.JajankenChantDamageTakenMultiplier;
+                if (!blocked)
+                {
+                    if (P.HasMastery(TechniqueId.Jajanken, MasteryMilestones.JajankenSteady) && RockCharge > 0.5f)
+                    {
+                        RockCharge *= 0.5f;
+                        chantStage = Mathf.Min(chantStage, 1);
+                        GameSession.Instance.PushNotice("Hit mid-chant — you hold on to half the power.", 1.5f);
+                    }
+                    else CancelChant("Hit mid-chant — the power scatters!");
+                }
             }
 
             bool tenWasActive = aura.TenActive;

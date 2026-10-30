@@ -34,6 +34,8 @@ namespace HunterAwakening
         [Tooltip("The roll keeps playing this many times longer than the gameplay dodge, unless another action interrupts it.")]
         [SerializeField] float dodgeDurationScale = 2.2f;
         [SerializeField] float squatEnd = 0.85f;
+        [Tooltip("Jajanken: the heavy punch is wound back to here and held, fist cocked, while the chant builds.")]
+        [SerializeField] float rockHold = 0.24f;
 
         static readonly int[] Hashes = BuildHashes();
 
@@ -151,6 +153,15 @@ namespace HunterAwakening
                     // Between reps the clip is held on its standing frame.
                     playback = repTimer > 0f ? Length(State.Squat) * squatEnd / repDuration : 0f;
                     return State.Squat;
+            }
+
+            if (combat.IsChargingRock)
+            {
+                // Wind back over the first part of the chant, then hold; releasing snaps into the punch.
+                var info = animator.GetCurrentAnimatorStateInfo(0);
+                bool cocked = info.shortNameHash == Hashes[(int)State.PunchHeavy] && info.normalizedTime >= rockHold;
+                playback = cocked ? 0f : rockHold * Length(State.PunchHeavy) / Mathf.Max(0.2f, combat.RockChargeTime * 0.4f);
+                return State.PunchHeavy;
             }
 
             if (combat.IsAttacking)
