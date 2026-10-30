@@ -64,6 +64,7 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 - [x] ⚠️ **Zetsu** (Z): aura sealed — hidden from opponents beyond detection range, fast aura/fatigue recovery, ambush strike from hiding; takes ×1.5 damage. Mastery from ambushes and hiding near an active opponent.
 - [x] ⚠️ **Gyo** (hold G): reads attack timing (impact countdown, next-attack timer), wider parry/dodge windows scaled by Perception; body slightly less protected. Trains Perception via Gyo Reading.
 - [x] ⚠️ **Gyo Stones** drill: find the stone whose aura mark is visible only through Gyo (Perception, Gyo mastery).
+- [x] ⚠️ **Aura visuals**: aura flows off the body — a flame shell on a copy of the character's skinned meshes plus flames streaming up from every limb (custom URP shaders in `Resources/Shaders`). Ten is a calm blue shroud, Ren roars orange and erupts when raised, Ken is dense violet, Gyo glows at the eyes, a broken Ren sputters out red. **Ren grows with training** (Ren presence: Max Output + Ren mastery, 1× → 3.5×). *Tune in play; check the fps cost of the shell meshes.*
 - [ ] ◻️ Dedicated Zetsu drill (today Zetsu trains only in sparring).
 - [ ] ◻️ **Affinity discovery** test (GDD §7.1).
 - [ ] ◻️ **Hatsu builder**: data-driven core effect + activation condition + cost + counterplay + enforceable vow (GDD §7.4). Start with one tested ability (e.g. *Binding Current*).

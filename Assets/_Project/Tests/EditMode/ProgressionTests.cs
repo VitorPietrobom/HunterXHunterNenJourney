@@ -98,6 +98,15 @@ namespace HunterAwakening.Tests
         }
 
         [Test]
+        public void Ren_PresenceGrowsWithTrainingAndIsCapped()
+        {
+            Assert.AreEqual(1f, StatEffects.RenPresence(10, 0), 1e-4f);
+            Assert.Greater(StatEffects.RenPresence(40, 0), StatEffects.RenPresence(10, 0), "Max Output enlarges Ren");
+            Assert.Greater(StatEffects.RenPresence(10, 60), StatEffects.RenPresence(10, 0), "Ren mastery enlarges Ren");
+            Assert.LessOrEqual(StatEffects.RenPresence(1e9, 1000), 3.5f);
+        }
+
+        [Test]
         public void Ren_BodyEnhancementIsCapped()
         {
             Assert.Greater(StatEffects.RenSpeedMultiplier(10), 1f);

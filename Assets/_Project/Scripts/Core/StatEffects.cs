@@ -56,6 +56,10 @@ namespace HunterAwakening
         public static float RenAttackSpeedMultiplier(double maxOutput) => Mathf.Min(1.1f + 0.06f * G(maxOutput), 1.25f);
         public static float RenMovingDrainMultiplier(double sustained) => 1f + 0.5f / (1f + 0.6f * G(sustained));
 
+        /// <summary>How large Ren's visible aura burns: 1 at awakening, growing with Max Output and Ren mastery.</summary>
+        public static float RenPresence(double maxOutput, float renMastery)
+            => Mathf.Min(1f + 0.55f * G(maxOutput) + 0.5f * Mathf.Clamp01(renMastery / 100f), 3.5f);
+
         public static float RenStagger(double maxOutput) => Mathf.Min(0.35f + 0.1f * G(maxOutput), 0.9f);
         public static float RenKnockback(double maxOutput) => Mathf.Min(2.5f + 1.5f * G(maxOutput), 8f);
 

@@ -2,6 +2,9 @@ using UnityEngine;
 
 namespace HunterAwakening
 {
+    /// <summary>Which aura the body shows this frame (drawn by <see cref="AuraVisual"/>).</summary>
+    public enum AuraLook { None, Gyo, Ten, Ren, Ken, Broken }
+
     /// <summary>
     /// Aura reserve and the four fundamentals:
     /// Ten (toggle, cheap defence), Ren (hold, offence + heavy defence + body enhancement),
@@ -42,6 +45,13 @@ namespace HunterAwakening
         public bool ZetsuActive { get; private set; }
         public bool GyoActive { get; private set; }
         public bool RenBroken => lockoutTimer > 0f;
+
+        public AuraLook Look { get; private set; }
+        public Color LookColor { get; private set; }
+        /// <summary>0..1: how fully the look shows (the Ren drill's output, otherwise 1).</summary>
+        public float LookStrength { get; private set; }
+        /// <summary>How large Ren burns: 1 at awakening, growing with Max Output and Ren mastery.</summary>
+        public float RenPresence => StatEffects.RenPresence(MaxOutput, P.GetMastery(TechniqueId.Ren));
 
         public const string KenInsight = "technique:ken";
         public const string KoInsight = "technique:ko";
@@ -95,6 +105,7 @@ namespace HunterAwakening
         {
             input = GetComponent<InputReader>();
             motor = GetComponent<PlayerMotor>();
+            if (GetComponent<AuraVisual>() == null) gameObject.AddComponent<AuraVisual>();
         }
 
         public void FillReserve() => P.SetAuraCurrent(Capacity, Capacity);
@@ -256,11 +267,39 @@ namespace HunterAwakening
 
         void UpdateVisual()
         {
+            bool drillRen = DrillGlow > 0.05f;
+            Look = ZetsuActive || !Awakened ? AuraLook.None
+                 : lockoutTimer > renLockout - 0.6f ? AuraLook.Broken // a short sputter, then whatever is still held
+                 : KenActive ? AuraLook.Ken
+                 : RenActive || drillRen ? AuraLook.Ren
+                 : TenActive ? AuraLook.Ten
+                 : GyoActive ? AuraLook.Gyo
+                 : AuraLook.None;
+            LookStrength = Look == AuraLook.Ren && !RenActive ? DrillGlow : 1f;
+            LookColor = Look switch
+            {
+                AuraLook.Broken => brokenColor,
+                AuraLook.Ken => kenColor,
+                AuraLook.Ren => renColor,
+                AuraLook.Ten => tenColor,
+                _ => gyoColor
+            };
+
             if (auraLight == null) return;
-            bool ren = RenActive || DrillGlow > 0.05f;
-            auraLight.enabled = !ZetsuActive && (TenActive || ren || RenBroken || GyoActive);
-            auraLight.color = RenBroken ? brokenColor : KenActive ? kenColor : ren ? renColor : TenActive ? tenColor : gyoColor;
-            auraLight.intensity = RenBroken ? 1.5f : RenActive ? 6f : DrillGlow > 0.05f ? 2f + 5f * DrillGlow : TenActive ? 2.5f : 1.2f;
+            auraLight.enabled = Look != AuraLook.None;
+            if (!auraLight.enabled) return;
+            float presence = Look == AuraLook.Ren || Look == AuraLook.Ken ? RenPresence : 1f;
+            float flicker = 0.85f + 0.3f * Mathf.PerlinNoise(Time.time * 9f, 0.37f);
+            auraLight.color = LookColor;
+            auraLight.range = 4f * Mathf.Sqrt(presence);
+            auraLight.intensity = flicker * Look switch
+            {
+                AuraLook.Broken => 1.5f,
+                AuraLook.Ken => 3.5f * Mathf.Sqrt(presence),
+                AuraLook.Ren => (RenActive ? 3.5f : 1.5f + 2.5f * DrillGlow) * Mathf.Sqrt(presence),
+                AuraLook.Ten => 2.5f,
+                _ => 1.2f
+            };
         }
     }
 }
