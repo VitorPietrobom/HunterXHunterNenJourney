@@ -107,6 +107,7 @@ namespace HunterAwakening.EditorTools
 
             var ground = Prim(PrimitiveType.Plane, "Ground", null, Vector3.zero, new Vector3(10f, 1f, 10f), m.Ground);
             ground.isStatic = true;
+            SceneLook.Apply(m.Ground, m.ArenaFloor, m.Wall, ground);
 
             // Player
             var player = Prim(PrimitiveType.Capsule, "Player", null, new Vector3(0f, 1f, 0f), Vector3.one, m.Player);
@@ -642,6 +643,13 @@ namespace HunterAwakening.EditorTools
             go.transform.localScale = scale;
             go.GetComponent<Renderer>().sharedMaterial = material;
             if (!collider) Object.DestroyImmediate(go.GetComponent<Collider>());
+            else if (type == PrimitiveType.Cylinder)
+            {
+                // A cylinder primitive comes with a capsule collider; squashed into a pad or disc it becomes a sphere
+                // as wide as the disc (a 1.6 m pad stood 0.8 m tall), so use the cylinder's own shape instead.
+                Object.DestroyImmediate(go.GetComponent<Collider>());
+                go.AddComponent<MeshCollider>().sharedMesh = go.GetComponent<MeshFilter>().sharedMesh;
+            }
             return go;
         }
 
