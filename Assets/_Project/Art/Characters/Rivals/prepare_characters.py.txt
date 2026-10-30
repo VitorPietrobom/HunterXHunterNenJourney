@@ -1,0 +1,125 @@
+"""Headless Blender: turn each downloaded character into a clean, Mixamo-ready FBX.
+
+Removes hand-held props, toon outline shells and unbound armatures, scales to the character's height, stands it on
+the origin facing -Y, and embeds its textures.
+
+Usage: blender -b --factory-startup --disable-autoexec --python prepare_for_mixamo.py -- OUT_DIR
+"""
+import sys
+
+import bpy
+import mathutils
+
+out_dir = sys.argv[sys.argv.index("--") + 1]
+ROOT = "M:/HxHAssets/Models/"
+
+# name: (source, height in metres, meshes to drop)
+CHARACTERS = {
+    "Gon": ("gon-freecss/source/Gon Freecss.glb", 1.54, {"mesh_id12", "mesh_id13"}),       # fishing rod
+    "Killua": ("killua-zoldyck/source/Killua Zoldyck.glb", 1.58, {"mesh_id5"}),           # skateboard
+    "Kurapika": ("kurapika/source/Kurapika.glb", 1.71, {"mesh_id6", "mesh_id7"}),         # hand-held sticks
+    "Hisoka": ("hisoka-hxh/source/Hisoka_Sketchfab.fbx", 1.87, set()),
+    "Meruem": ("meruem/source/meruem.fbx", 2.2, set()),
+}
+
+HISOKA_TEX = {
+    "Skin": "HisokaUV_001_Skin_Light_Albedo.png",
+    "Clothing": "HisokaUV_001_Clothing_Light_Albedo.png",
+    "Hair": "HisokaUV_001_Hair_Light_Albedo.png",
+    "Eye": "HisokaUV_001_EyeLight_Albedo.png",
+}
+
+
+def link_hisoka_textures():
+    for mat in bpy.data.materials:
+        file = HISOKA_TEX.get(mat.name)
+        if not file or not mat.use_nodes:
+            continue
+        nodes = mat.node_tree.nodes
+        bsdf = next((n for n in nodes if n.type == "BSDF_PRINCIPLED"), None)
+        if bsdf is None:
+            continue
+        tex = nodes.new("ShaderNodeTexImage")
+        tex.image = bpy.data.images.load(ROOT + "hisoka-hxh/textures/" + file)
+        mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+
+
+def to_principled():
+    """The FBX exporter only understands Principled BSDF materials; some .glb files use diffuse + glossy shaders."""
+    for mat in bpy.data.materials:
+        if not mat.use_nodes:
+            continue
+        nodes = mat.node_tree.nodes
+        if any(n.type == "BSDF_PRINCIPLED" for n in nodes):
+            continue
+        image = next((l.from_node.image for l in mat.node_tree.links
+                      if l.from_node.type == "TEX_IMAGE" and l.to_socket.name in ("Color", "Base Color")), None)
+        nodes.clear()
+        out = nodes.new("ShaderNodeOutputMaterial")
+        bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+        mat.node_tree.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+        if image is not None:
+            tex = nodes.new("ShaderNodeTexImage")
+            tex.image = image
+            mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+
+
+for name, (source, height, drop) in CHARACTERS.items():
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    path = ROOT + source
+    if path.endswith(".glb"):
+        bpy.ops.import_scene.gltf(filepath=path)
+    else:
+        bpy.ops.import_scene.fbx(filepath=path)
+    if name == "Hisoka":
+        link_hisoka_textures()
+    to_principled()
+
+    for o in list(bpy.data.objects):
+        if o.type == "MESH" and (o.name in drop or "Outline" in o.name):
+            bpy.data.objects.remove(o, do_unlink=True)
+    meshes = [o for o in bpy.data.objects if o.type == "MESH"]
+
+    # Bake every node transform into the meshes, then drop empties and unbound armatures.
+    for o in meshes:
+        world = o.matrix_world.copy()
+        o.parent = None
+        o.matrix_world = world
+        for mod in list(o.modifiers):
+            if mod.type == "ARMATURE":
+                o.modifiers.remove(mod)
+    for o in list(bpy.data.objects):
+        if o.type != "MESH":
+            bpy.data.objects.remove(o, do_unlink=True)
+    bpy.ops.object.select_all(action="SELECT")
+    bpy.context.view_layer.objects.active = meshes[0]
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
+    lo = mathutils.Vector((1e9, 1e9, 1e9))
+    hi = -lo
+    for o in meshes:
+        for v in o.data.vertices:
+            lo = mathutils.Vector(map(min, lo, v.co))
+            hi = mathutils.Vector(map(max, hi, v.co))
+    scale = height / (hi.z - lo.z)
+    offset = mathutils.Vector(((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, lo.z))
+    for o in meshes:
+        o.data.transform(mathutils.Matrix.Scale(scale, 4) @ mathutils.Matrix.Translation(-offset))
+        o.data.update()
+
+    # Images packed inside a .glb have no file path, and the FBX exporter only embeds images it can read from disk.
+    import os
+    tex_dir = f"{out_dir}/textures/{name}"
+    os.makedirs(tex_dir, exist_ok=True)
+    for image in bpy.data.images:
+        if image.packed_file is not None or not image.filepath:
+            image.filepath_raw = f"{tex_dir}/{bpy.path.clean_name(image.name)}.png"
+            image.file_format = "PNG"
+            image.save()
+
+    out = f"{out_dir}/{name}_ForMixamo.fbx"
+    bpy.ops.export_scene.fbx(filepath=out, use_selection=False, object_types={"MESH"},
+                             path_mode="COPY", embed_textures=True, apply_unit_scale=True,
+                             mesh_smooth_type="FACE", add_leaf_bones=False)
+    verts = sum(len(o.data.vertices) for o in meshes)
+    print(f"EXPORTED {name}: {len(meshes)} meshes, {verts} verts, {height} m -> {out}")

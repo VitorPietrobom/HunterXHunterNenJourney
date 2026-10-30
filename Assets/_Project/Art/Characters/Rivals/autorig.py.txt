@@ -1,0 +1,433 @@
+"""Headless Blender auto-rigger for upright humanoid characters (T- or A-pose, facing -Y, feet on z=0).
+
+Measures joints from the mesh, builds a Mixamo-named skeleton (Unity's Humanoid auto-mapping knows the names),
+skins with heat weights (nearest-bone fallback for anything heat weighting misses), straightens the arms into an
+exact T-pose bind pose, and exports an FBX for Unity. Also renders joint markers for checking.
+
+Usage: blender -b --factory-startup --disable-autoexec --python autorig.py -- IN_DIR OUT_DIR PREVIEW_DIR Name [Name ...]
+"""
+import json
+import math
+import os
+import sys
+
+import bpy
+import mathutils
+from mathutils import Vector
+
+args = sys.argv[sys.argv.index("--") + 1:]
+in_dir, out_dir, preview_dir = args[:3]
+names = args[3:]
+
+# Per-character adjustments (fractions of height unless noted), applied after measuring.
+# hip: hip-joint height (loose shorts and trousers hide the real crotch); knee: knee height; arm: (x, z) of the
+# shoulder, elbow, wrist and fingertip for arms hanging too steeply to measure; rigid: mesh-name prefix -> bone.
+OVERRIDES = {
+    "Gon": {"hip": 0.455},
+    "Killua": {"hip": 0.48},
+    "Kurapika": {"hip": 0.49},
+    "Hisoka": {"hip": 0.52, "knee": 0.34},
+    "Meruem": {"hip": 0.47, "rigid": {"tail": "Hips"},
+               # Heat weighting fails on this mesh; its hanging claws sit beside the thighs, so keep it on arm bones.
+               "only": {"arms": ("Shoulder", "Arm", "Hand")},
+               "arm": {"Arm": (0.11, 0.79), "ForeArm": (0.15, 0.64), "Hand": (0.165, 0.52), "HandEnd": (0.17, 0.44)}},
+}
+
+P = "mixamorig:"
+
+
+def all_vertices(skip=()):
+    """Vertices plus points along long edges, so thin slices of low-poly meshes still see a continuous surface."""
+    verts = []
+    zs = [(o.matrix_world @ v.co).z for o in bpy.data.objects if o.type == "MESH" for v in o.data.vertices]
+    step = 0.004 * (max(zs) - min(zs))
+    for o in bpy.data.objects:
+        if o.type != "MESH" or o.name in skip:
+            continue
+        mw = o.matrix_world
+        world = [mw @ v.co for v in o.data.vertices]
+        verts.extend(world)
+        for e in o.data.edges:
+            a, b = world[e.vertices[0]], world[e.vertices[1]]
+            n = int((b - a).length / step)
+            for i in range(1, n):
+                verts.append(a.lerp(b, i / n))
+    return verts
+
+
+def band(verts, z, half):
+    return [v for v in verts if abs(v.z - z) <= half]
+
+
+def mean(vs):
+    s = Vector((0, 0, 0))
+    for v in vs:
+        s += v
+    return s / max(1, len(vs))
+
+
+def torso_half_width(verts, z, H):
+    """Walk outward from x=0 in a slice until a gap: the torso's edge (arms beyond a gap are excluded)."""
+    sl = band(verts, z, 0.01 * H)
+    step = 0.005 * H
+    occupied = set(int(abs(v.x) / step) for v in sl)
+    i, empty = 0, 0
+    while empty < 3 and i < 400:
+        empty = 0 if i in occupied else empty + 1
+        i += 1
+    return (i - 3) * step
+
+
+def principal_axis(points):
+    c = mean(points)
+    cov = [[0.0] * 3 for _ in range(3)]
+    for p in points:
+        d = p - c
+        for a in range(3):
+            for b in range(3):
+                cov[a][b] += d[a] * d[b]
+    m = mathutils.Matrix(cov)
+    # Power iteration for the dominant eigenvector.
+    v = Vector((1, 0.1, 0.1))
+    for _ in range(50):
+        v = (m @ v).normalized()
+    return c, v
+
+
+def measure(verts, name, cfg):
+    H = max(v.z for v in verts)
+    j = {}
+
+    # Legs: a low slice through the shins separates the two legs.
+    for side, sx in (("Left", 1), ("Right", -1)):
+        shin = [v for v in band(verts, 0.2 * H, 0.015 * H) if v.x * sx > 0]
+        j[f"{side}LegCenter"] = mean(shin)
+    leg_y = (j["LeftLegCenter"].y + j["RightLegCenter"].y) / 2
+
+    # Crotch: lowest height with geometry between the legs, in the middle of the body's depth (front/back panels
+    # such as a tabard don't count).
+    crotch = 0.45 * H
+    z = 0.25 * H
+    while z < 0.7 * H:
+        if any(abs(v.x) < 0.012 * H and abs(v.y - leg_y) < 0.03 * H for v in band(verts, z, 0.006 * H)):
+            crotch = z
+            break
+        z += 0.005 * H
+    hip_z = crotch + 0.035 * H
+    if "hip" in cfg:  # measured crotches sit at the hem of loose shorts; use the known hip-joint height instead
+        hip_z = (cfg["hip"] + 0.045) * H
+        crotch = hip_z - 0.035 * H
+
+    # Shoulders and arms.
+    chest_z = 0.62 * H
+    torso_w = torso_half_width(verts, chest_z, H)
+    for side, sx in (("Left", 1), ("Right", -1)):
+        arm = [v for v in verts if v.x * sx > torso_w + 0.03 * H and v.z > 0.42 * H]
+        c, d = principal_axis(arm)
+        if d.x * sx < 0:
+            d = -d
+        tip = max(arm, key=lambda v: (v - c).dot(d))
+        # Shoulder joint: where the arm's axis meets the torso edge.
+        t = (sx * torso_w * 0.85 - c.x) / d.x
+        shoulder = c + d * t
+        length = (tip - shoulder).dot(d)
+        j[f"{side}Arm"] = shoulder
+        j[f"{side}ForeArm"] = shoulder + d * (0.43 * length)
+        j[f"{side}Hand"] = shoulder + d * (0.76 * length)
+        j[f"{side}HandEnd"] = shoulder + d * length
+        j[f"{side}ArmDir"] = d
+        if "arm" in cfg:
+            for key, (fx, fz) in cfg["arm"].items():
+                zz = fz * H
+                sl = [v for v in band(verts, zz, 0.01 * H) if abs(v.x - sx * fx * H) < 0.03 * H]
+                j[f"{side}{key}"] = Vector((sx * fx * H, mean(sl).y if sl else c.y, zz))
+
+    shoulder_z = (j["LeftArm"].z + j["RightArm"].z) / 2
+    neck_z = shoulder_z + 0.035 * H
+
+    def body_y(zz):
+        sl = [v for v in band(verts, zz, 0.01 * H) if abs(v.x) < torso_w * 0.6]
+        return mean(sl).y if sl else leg_y
+
+    j["Hips"] = Vector((0, body_y(hip_z), hip_z))
+    for key, f in (("Spine", 0.18), ("Spine1", 0.42), ("Spine2", 0.68)):
+        zz = hip_z + f * (neck_z - hip_z)
+        j[key] = Vector((0, body_y(zz), zz))
+    j["Neck"] = Vector((0, body_y(neck_z), neck_z))
+    head_z = neck_z + 0.055 * H
+    j["Head"] = Vector((0, body_y(head_z), head_z))
+    j["HeadTop_End"] = Vector((0, j["Head"].y, H))
+    for side, sx in (("Left", 1), ("Right", -1)):
+        j[f"{side}Shoulder"] = Vector((sx * 0.25 * torso_w, j["Spine2"].y, shoulder_z + 0.01 * H))
+
+        # Legs: hip joint over the thigh, knee and ankle down the leg's centre line, toes from the foot.
+        leg = j[f"{side}LegCenter"]
+        thigh = [v for v in band(verts, crotch - 0.04 * H, 0.01 * H) if v.x * sx > 0 and abs(v.x - leg.x) < 0.07 * H]
+        thigh_c = mean(thigh) if thigh else leg
+        j[f"{side}UpLeg"] = Vector((thigh_c.x, j["Hips"].y, hip_z - 0.045 * H))
+        foot = [v for v in verts if v.x * sx > 0 and v.z < 0.07 * H and abs(v.x - leg.x) < 0.08 * H]
+        toe_y = min(v.y for v in foot)
+        heel_y = max(v.y for v in foot)
+        ankle_z = 0.055 * H
+        ankle_y = heel_y - 0.3 * (heel_y - toe_y)
+        knee_z = cfg["knee"] * H if "knee" in cfg else ankle_z + 0.48 * (j[f"{side}UpLeg"].z - ankle_z)
+        knee = [v for v in band(verts, knee_z, 0.01 * H) if v.x * sx > 0 and abs(v.x - leg.x) < 0.1 * H]
+        knee_c = mean(knee) if knee else leg
+        j[f"{side}Leg"] = Vector((knee_c.x, knee_c.y, knee_z))
+        j[f"{side}Foot"] = Vector((leg.x, ankle_y, ankle_z))
+        j[f"{side}ToeBase"] = Vector((leg.x, toe_y + 0.35 * (heel_y - toe_y), 0.015 * H))
+        j[f"{side}Toe_End"] = Vector((leg.x, toe_y, 0.015 * H))
+    return j, H
+
+
+# Parent → children chain, Mixamo names (without prefix).
+CHAIN = [
+    ("Hips", None), ("Spine", "Hips"), ("Spine1", "Spine"), ("Spine2", "Spine1"), ("Neck", "Spine2"),
+    ("Head", "Neck"), ("HeadTop_End", "Head"),
+]
+for s in ("Left", "Right"):
+    CHAIN += [
+        (f"{s}Shoulder", "Spine2"), (f"{s}Arm", f"{s}Shoulder"), (f"{s}ForeArm", f"{s}Arm"), (f"{s}Hand", f"{s}ForeArm"),
+        (f"{s}HandEnd", f"{s}Hand"),
+        (f"{s}UpLeg", "Hips"), (f"{s}Leg", f"{s}UpLeg"), (f"{s}Foot", f"{s}Leg"), (f"{s}ToeBase", f"{s}Foot"),
+        (f"{s}Toe_End", f"{s}ToeBase"),
+    ]
+TAIL_OF = {"Hips": "Spine", "Spine": "Spine1", "Spine1": "Spine2", "Spine2": "Neck", "Neck": "Head", "Head": "HeadTop_End"}
+for s in ("Left", "Right"):
+    TAIL_OF.update({f"{s}Shoulder": f"{s}Arm", f"{s}Arm": f"{s}ForeArm", f"{s}ForeArm": f"{s}Hand", f"{s}Hand": f"{s}HandEnd",
+                    f"{s}UpLeg": f"{s}Leg", f"{s}Leg": f"{s}Foot", f"{s}Foot": f"{s}ToeBase", f"{s}ToeBase": f"{s}Toe_End"})
+LEAVES = {"HeadTop_End", "LeftHandEnd", "RightHandEnd", "LeftToe_End", "RightToe_End"}
+
+
+def build_armature(j, H):
+    data = bpy.data.armatures.new("Armature")
+    arm = bpy.data.objects.new("Armature", data)
+    bpy.context.scene.collection.objects.link(arm)
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.mode_set(mode="EDIT")
+    bones = {}
+    for name, parent in CHAIN:
+        b = data.edit_bones.new(P + name)
+        b.head = j[name]
+        if name in TAIL_OF:
+            b.tail = j[TAIL_OF[name]]
+        else:  # leaves point on along their parent
+            pdir = (j[name] - j[parent]).normalized() if parent else Vector((0, 0, 1))
+            b.tail = j[name] + pdir * 0.03 * H
+        if (b.tail - b.head).length < 1e-4:
+            b.tail = b.head + Vector((0, 0, 0.02 * H))
+        if parent:
+            b.parent = bones[parent]
+            b.use_connect = False
+        bones[name] = b
+    bpy.ops.object.mode_set(mode="OBJECT")
+    return arm
+
+
+def segment_distance(p, a, b):
+    ab = b - a
+    t = max(0.0, min(1.0, (p - a).dot(ab) / max(ab.dot(ab), 1e-9)))
+    return (a + ab * t - p).length
+
+
+def fill_missing_weights(arm, mesh, rigid_bone=None, only=None):
+    """Heat weighting can fail on open or intersecting meshes; give such vertices nearest-bone weights."""
+    deform = [b for b in arm.data.bones if b.name.replace(P, "") not in LEAVES
+              and (only is None or any(k in b.name for k in only))]
+    segs = [(b.name, arm.matrix_world @ b.head_local, arm.matrix_world @ b.tail_local) for b in deform]
+    groups = {g.name: g for g in mesh.vertex_groups}
+    for name, _, _ in segs:
+        if name not in groups:
+            groups[name] = mesh.vertex_groups.new(name=name)
+    index_to_name = {g.index: g.name for g in mesh.vertex_groups}
+    fixed = 0
+    mw = mesh.matrix_world
+    for v in mesh.data.vertices:
+        if rigid_bone is None and only is None and any(g.weight > 0.01 and index_to_name.get(g.group, "").startswith(P) for g in v.groups):
+            continue
+        for g in list(v.groups):
+            mesh.vertex_groups[g.group].remove([v.index])
+        if rigid_bone is not None:
+            groups[P + rigid_bone].add([v.index], 1.0, "REPLACE")
+            fixed += 1
+            continue
+        p = mw @ v.co
+        dists = sorted((segment_distance(p, a, b), n) for n, a, b in segs)[:2]
+        w0 = 1.0 / max(dists[0][0], 1e-4) ** 2
+        w1 = 1.0 / max(dists[1][0], 1e-4) ** 2
+        groups[dists[0][1]].add([v.index], w0 / (w0 + w1), "REPLACE")
+        groups[dists[1][1]].add([v.index], w1 / (w0 + w1), "REPLACE")
+        fixed += 1
+    return fixed
+
+
+def skin(arm, meshes, rigid, only):
+    for o in bpy.data.objects:
+        o.select_set(False)
+    for m in meshes:
+        if m.name in rigid:
+            continue
+        m.select_set(True)
+    arm.select_set(True)
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.parent_set(type="ARMATURE_AUTO")
+    report = {}
+    for m in meshes:
+        if m.name in rigid:
+            m.parent = arm
+            m.matrix_parent_inverse = arm.matrix_world.inverted()
+            mod = m.modifiers.new("Armature", "ARMATURE")
+            mod.object = arm
+            report[m.name] = f"rigid to {rigid[m.name]} ({fill_missing_weights(arm, m, rigid[m.name])} verts)"
+        else:
+            allowed = next((bones for key, bones in only.items() if m.name.startswith(key)), None)
+            report[m.name] = f"fallback {fill_missing_weights(arm, m, only=allowed)} of {len(m.data.vertices)}"
+    return report
+
+
+def straighten_arms(arm, meshes):
+    """Rotate each arm chain to point straight out along ±X, then make that the bind pose (an exact T-pose)."""
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.mode_set(mode="POSE")
+    for side, sx in (("Left", 1.0), ("Right", -1.0)):
+        for bone in ("Arm", "ForeArm", "Hand"):
+            pb = arm.pose.bones[P + side + bone]
+            bpy.context.view_layer.update()
+            current = (pb.tail - pb.head).normalized()
+            target = Vector((sx, 0.0, 0.0))
+            rot = current.rotation_difference(target)
+            # Apply the world-space rotation to the pose bone.
+            m = pb.matrix.copy()
+            loc = m.to_translation()
+            m = mathutils.Matrix.Translation(loc) @ rot.to_matrix().to_4x4() @ mathutils.Matrix.Translation(-loc) @ m
+            pb.matrix = m
+            bpy.context.view_layer.update()
+    bpy.ops.object.mode_set(mode="OBJECT")
+    # Bake the posed meshes, then make the pose the rest pose and re-bind.
+    for m in meshes:
+        bpy.context.view_layer.objects.active = m
+        for mod in m.modifiers:
+            if mod.type == "ARMATURE":
+                bpy.ops.object.modifier_apply(modifier=mod.name)
+                break
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.mode_set(mode="POSE")
+    bpy.ops.pose.armature_apply(selected=False)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for m in meshes:
+        mod = m.modifiers.new("Armature", "ARMATURE")
+        mod.object = arm
+
+
+def render_markers(name, arm, H):
+    scene = bpy.context.scene
+    mat = bpy.data.materials.new("marker")
+    mat.diffuse_color = (1, 0.1, 0.1, 1)
+    markers = []
+    for b in arm.data.bones:
+        for p in (b.head_local,):
+            bpy.ops.mesh.primitive_uv_sphere_add(radius=0.012 * H, location=arm.matrix_world @ p)
+            s = bpy.context.active_object
+            s.data.materials.append(mat)
+            markers.append(s)
+        # A thin cylinder along the bone.
+        a = arm.matrix_world @ b.head_local
+        c = arm.matrix_world @ b.tail_local
+        d = c - a
+        if d.length > 1e-4:
+            bpy.ops.mesh.primitive_cylinder_add(radius=0.004 * H, depth=d.length, location=(a + c) / 2)
+            cyl = bpy.context.active_object
+            cyl.rotation_euler = d.to_track_quat("Z", "Y").to_euler()
+            cyl.data.materials.append(mat)
+            markers.append(cyl)
+    scene.render.engine = "BLENDER_WORKBENCH"
+    scene.display.shading.light = "STUDIO"
+    scene.display.shading.color_type = "MATERIAL"
+    scene.display.shading.show_xray = True
+    scene.display.shading.xray_alpha = 0.35
+    scene.render.resolution_x = 700
+    scene.render.resolution_y = 700
+    cam_data = bpy.data.cameras.new("cam")
+    cam_data.type = "ORTHO"
+    cam_data.ortho_scale = H * 1.15
+    cam = bpy.data.objects.new("cam", cam_data)
+    scene.collection.objects.link(cam)
+    scene.camera = cam
+    center = Vector((0, 0, H / 2))
+    for label, angle in (("front", 0.0), ("side", 90.0)):
+        a = math.radians(angle)
+        cam.location = center + Vector((math.sin(a), -math.cos(a), 0)) * H * 3
+        cam.rotation_euler = (center - cam.location).to_track_quat("-Z", "Y").to_euler()
+        scene.render.filepath = f"{preview_dir}/{name}_rig_{label}.png"
+        bpy.ops.render.render(write_still=True)
+    for m in markers:
+        bpy.data.objects.remove(m, do_unlink=True)
+
+
+def pose_test(name, arm, H):
+    """Bend arms and legs like a fighting pose and render, to check the skinning."""
+    scene = bpy.context.scene
+    scene.display.shading.show_xray = False
+    scene.display.shading.color_type = "TEXTURE"
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.mode_set(mode="POSE")
+    rot = {
+        "LeftArm": (0, 0, math.radians(-60)), "RightArm": (0, 0, math.radians(60)),
+        "LeftForeArm": (math.radians(-70), 0, 0), "RightForeArm": (math.radians(-70), 0, 0),
+        "LeftUpLeg": (math.radians(-40), 0, 0), "LeftLeg": (math.radians(60), 0, 0),
+        "Spine1": (math.radians(15), 0, 0),
+    }
+    for b, e in rot.items():
+        pb = arm.pose.bones[P + b]
+        pb.rotation_mode = "XYZ"
+        pb.rotation_euler = e
+    bpy.ops.object.mode_set(mode="OBJECT")
+    cam = scene.camera
+    center = Vector((0, 0, H / 2))
+    a = math.radians(35)
+    cam.location = center + Vector((math.sin(a), -math.cos(a), 0)) * H * 3
+    cam.rotation_euler = (center - cam.location).to_track_quat("-Z", "Y").to_euler()
+    scene.render.filepath = f"{preview_dir}/{name}_rig_posed.png"
+    bpy.ops.render.render(write_still=True)
+    bpy.ops.object.mode_set(mode="POSE")
+    for pb in arm.pose.bones:
+        pb.rotation_mode = "QUATERNION"
+        pb.rotation_quaternion = (1, 0, 0, 0)
+        pb.rotation_euler = (0, 0, 0)
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+
+for name in names:
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    bpy.ops.import_scene.fbx(filepath=f"{in_dir}/{name}_ForMixamo.fbx")
+    meshes = [o for o in bpy.data.objects if o.type == "MESH"]
+    for o in list(bpy.data.objects):
+        if o.type != "MESH":
+            bpy.data.objects.remove(o, do_unlink=True)
+    bpy.ops.object.select_all(action="SELECT")
+    bpy.context.view_layer.objects.active = meshes[0]
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
+    cfg = OVERRIDES.get(name, {})
+    rigid = {m.name: bone for m in meshes for key, bone in cfg.get("rigid", {}).items() if m.name.startswith(key)}
+    verts = all_vertices(skip=set(rigid))
+    joints, H = measure(verts, name, cfg)
+    arm = build_armature(joints, H)
+    report = skin(arm, meshes, rigid, cfg.get("only", {}))
+    straighten_arms(arm, meshes)
+    render_markers(name, arm, H)
+    pose_test(name, arm, H)
+
+    for o in bpy.data.objects:
+        o.select_set(o.type in ("ARMATURE", "MESH"))
+    os.makedirs(out_dir, exist_ok=True)
+    bpy.ops.export_scene.fbx(
+        filepath=f"{out_dir}/{name}.fbx", use_selection=True, object_types={"ARMATURE", "MESH"},
+        use_mesh_modifiers=True, mesh_smooth_type="FACE", use_armature_deform_only=False, add_leaf_bones=False,
+        primary_bone_axis="Y", secondary_bone_axis="X", apply_scale_options="FBX_SCALE_ALL",
+        axis_forward="-Z", axis_up="Y", path_mode="COPY", embed_textures=True, bake_anim=False)
+    print(f"RIGGED {name}: H {H:.2f}")
+    for k in ("Hips", "Neck", "Head", "LeftArm", "LeftHand", "LeftUpLeg", "LeftLeg", "LeftFoot"):
+        print(f"  {k}: {tuple(round(c, 3) for c in joints[k])}")
+    for m, r in report.items():
+        print(f"  skin {m}: {r}")

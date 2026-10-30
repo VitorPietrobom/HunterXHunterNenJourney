@@ -41,6 +41,18 @@ namespace HunterAwakening.EditorTools
                 importer.SaveAndReimport();
             }
 
+            // Textures embedded in the FBX are only linked to its materials once they exist as assets.
+            string textureDir = $"{Dir}/{name}/Textures";
+            if (!AssetDatabase.IsValidFolder(textureDir))
+            {
+                AssetDatabase.CreateFolder($"{Dir}/{name}", "Textures");
+                if (importer.ExtractTextures(textureDir))
+                {
+                    AssetDatabase.Refresh();
+                    importer.SaveAndReimport();
+                }
+            }
+
             foreach (var asset in AssetDatabase.LoadAllAssetsAtPath(path))
             {
                 if (!(asset is Avatar avatar)) continue;
