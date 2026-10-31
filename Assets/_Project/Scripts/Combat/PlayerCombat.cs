@@ -207,6 +207,7 @@ namespace HunterAwakening
             var target = NearestEnemy(engageRadius);
             if (target != null) motor.FaceTowards(target.transform.position);
             session.PushNotice(Chant[0], 1.2f);
+            ImpactEffects.ChantBeat(0);
         }
 
         void TickChant(float dt, bool blocked)
@@ -235,6 +236,7 @@ namespace HunterAwakening
             {
                 chantStage = stage;
                 GameSession.Instance.PushNotice(Chant[stage], stage == 3 ? 2f : 1.2f);
+                ImpactEffects.ChantBeat(stage);
                 if (stage == 3) HitFeedback.Shake(0.12f);
             }
             var target = NearestEnemy(engageRadius);
@@ -254,6 +256,7 @@ namespace HunterAwakening
             Begin(rockAttack, rock: true);
             if (!IsAttacking) return; // no stamina left to throw it
             GameSession.Instance.PushNotice(charge >= 1f ? "GUU!!" : "Guu!", 1.5f);
+            ImpactEffects.RockThrow(charge);
             RockReleased?.Invoke(charge);
         }
 

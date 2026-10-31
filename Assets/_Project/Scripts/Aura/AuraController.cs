@@ -34,6 +34,7 @@ namespace HunterAwakening
         float vulnerableTimer;
         float zetsuHiddenTime;
         bool suppressNoticeShown;
+        bool renWasActive;
 
         ProgressionService P => GameSession.Instance.Progression;
 
@@ -211,6 +212,8 @@ namespace HunterAwakening
             }
             if (!input.RenHeld) suppressNoticeShown = false;
             RenActive = !blocked && input.RenHeld && Current > 1f && !RenBroken && !SuppressRen && !ZetsuActive;
+            if (RenActive && !renWasActive) ImpactEffects.RenRaise(RenPresence);
+            renWasActive = RenActive;
             GyoActive = !blocked && input.GyoHeld && Current > 1f && !ZetsuActive;
 
             float powerPerSecond = 0f;

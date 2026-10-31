@@ -15,6 +15,7 @@ namespace HunterAwakening
         Color color;
         float presence = 1f;
         Light glow;
+        bool flaring;
 
         public AuraLook Look { get; private set; }
         public Color LookColor => color;
@@ -55,6 +56,8 @@ namespace HunterAwakening
             else if (enemy.IsTelegraphing) Look = AuraLook.Ren;
             else Look = AuraLook.Ten;
             LookStrength = 1f;
+            if (Look == AuraLook.Ren && !flaring) ImpactEffects.RivalFlare(presence);
+            flaring = Look == AuraLook.Ren;
 
             glow.enabled = Look != AuraLook.None;
             if (!glow.enabled) return;
