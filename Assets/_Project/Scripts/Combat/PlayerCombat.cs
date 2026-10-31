@@ -91,6 +91,7 @@ namespace HunterAwakening
         public event Action<float> RockReleased;
         bool currentIsRock;
         float rockCharge;
+        HitFlash hitFlash;
         int chantStage;
         static readonly string[] Chant = { "Saisho wa guu!", "Jan…", "Ken…", "— everything into the fist!" };
         /// <summary>Wind-up time of the current attack, after fatigue.</summary>
@@ -126,6 +127,8 @@ namespace HunterAwakening
             vitals = GetComponent<PlayerVitals>();
             health = GetComponent<Health>();
             aura = GetComponent<AuraController>();
+            hitFlash = GetComponent<HitFlash>();
+            if (hitFlash == null) hitFlash = gameObject.AddComponent<HitFlash>();
             motor.Dodged += OnDodged;
         }
 
@@ -506,7 +509,11 @@ namespace HunterAwakening
             DamageNumbers.Show(transform.position + Vector3.up * 1.6f, dealt, blocked ? DamageNumbers.Kind.Blocked : DamageNumbers.Kind.Taken);
             P.AddExertion(1.5f);
             tracker?.RegisterPlayerDamaged(dealt, blocked, tenWasActive || renWasActive);
-            if (!blocked && dealt > 0f) HitTaken?.Invoke();
+            if (!blocked && dealt > 0f)
+            {
+                hitFlash.Flash();
+                HitTaken?.Invoke();
+            }
             HitFeedback.Impact(blocked ? 0.03f : 0.06f, blocked ? 0.2f : 0.5f);
             if (blocked) ImpactEffects.Blocked(transform.position + transform.forward * 0.4f + Vector3.up * 0.5f);
             else ImpactEffects.PlayerHurt(transform.position + Vector3.up * 0.5f);

@@ -18,6 +18,7 @@ Shader "HunterAwakening/Toon"
         [Header(Outline)]
         _OutlineColor ("Outline Color", Color) = (0.12, 0.08, 0.1, 1)
         _OutlineWidth ("Outline Width (px at 1080p)", Range(0, 6)) = 1.6
+        [HideInInspector] _HitFlash ("Hit Flash", Range(0, 1)) = 0
     }
     SubShader
     {
@@ -29,7 +30,7 @@ Shader "HunterAwakening/Toon"
         CBUFFER_START(UnityPerMaterial)
             float4 _BaseMap_ST;
             half4 _BaseColor, _ShadowTint, _RimColor, _OutlineColor;
-            half _ShadowThreshold, _ShadowSoftness, _RimStrength, _RimWidth, _Glint, _OutlineWidth;
+            half _ShadowThreshold, _ShadowSoftness, _RimStrength, _RimWidth, _Glint, _OutlineWidth, _HitFlash;
         CBUFFER_END
 
         TEXTURE2D(_BaseMap);
@@ -108,6 +109,8 @@ Shader "HunterAwakening/Toon"
                 half glint = smoothstep(0.96, 0.975, dot(n, h)) * lit * _Glint;
                 color += sun.color * glint;
 
+                // Struck: a white impact frame (set per renderer by HitFlash).
+                color = lerp(color, half3(1.0, 0.97, 0.92) * 1.4, _HitFlash);
                 color = MixFog(color, i.fog);
                 return half4(color, 1);
             }

@@ -112,10 +112,13 @@ namespace HunterAwakening
             if (guardVisual != null) guardVisual.SetActive(false);
             // Animated fighters show their aura; the capsule fallback keeps its colour cues only.
             if (GetComponent<EnemyAnimator>() != null && GetComponent<RivalAura>() == null) gameObject.AddComponent<RivalAura>();
+            hitFlash = GetComponent<HitFlash>();
+            if (hitFlash == null) hitFlash = gameObject.AddComponent<HitFlash>();
         }
 
         void OnEnable() => All.Add(this);
         void OnDisable() => All.Remove(this);
+        HitFlash hitFlash;
 
         /// <summary>Loads an opponent tier's fixed stats (only between matches).</summary>
         public void ApplyTier(RivalTier tier)
@@ -245,6 +248,7 @@ namespace HunterAwakening
 
             dealt = health.TakeDamage(damage);
             flashTimer = 0.08f;
+            if (result != HitResult.Guarded && dealt > 0f) hitFlash.Flash();
             if (health.IsDead)
             {
                 Enter(State.Defeated, 0f);
