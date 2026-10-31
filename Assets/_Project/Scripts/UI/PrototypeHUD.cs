@@ -40,6 +40,7 @@ namespace HunterAwakening
             var session = GameSession.Instance;
             if (session == null || player == null) return;
             if (worldCamera == null) worldCamera = Camera.main;
+            HudGui.Use();
 
             if (session.DashboardOpen)
             {
@@ -80,38 +81,68 @@ namespace HunterAwakening
         {
             var p = session.Progression;
             var f = p.Fatigue;
-            float x = 16f, y = 16f, w = 280f, h = 20f;
-            HudGui.Panel(new Rect(x - 6, y - 6, w + 12, p.IsAuraAwakened ? 172 : 146));
+            var a = player.Aura;
+            const float x = 16f, w = 300f;
+            float y = 16f;
+            float height = p.IsAuraAwakened ? 168f : 140f;
+            HudGui.Panel(new Rect(x - 8, y - 8, w + 16, height));
 
-            HudGui.Bar(new Rect(x, y, w, h), player.Health.Fraction, HudGui.Bad, $"Health {player.Health.Current:0}/{player.Health.Max:0}");
-            y += h + 4;
-            HudGui.Bar(new Rect(x, y, w, h), player.Vitals.Fraction, player.Vitals.IsExhausted ? HudGui.Warn : HudGui.Good,
-                player.Vitals.IsExhausted ? "Stamina — EXHAUSTED" : $"Stamina {player.Vitals.Stamina:0}/{player.Vitals.MaxStamina:0}");
-            y += h + 4;
+            // Name, and chips for whatever the aura is doing right now.
+            GUI.Label(new Rect(x, y - 2, 120, 24), "<b>GON</b>  <size=11><color=#9aa4b2>Hunter</color></size>", HudGui.Label);
+            float chipX = x + w;
+            void Chip(string text, Color color)
+            {
+                var size = HudGui.Small.CalcSize(new GUIContent(text));
+                chipX -= size.x + 18f;
+                HudGui.Chip(new Vector2(chipX, y), text, color);
+            }
             if (p.IsAuraAwakened)
             {
-                var a = player.Aura;
-                string mode = a.ZetsuActive ? " · ZETSU" : a.RenBroken ? " · REN BROKEN" : a.KenActive ? " · KEN" : a.RenActive ? " · REN" : a.TenActive ? " · TEN" : "";
-                if (a.CanKo) mode += " · F: KO";
-                if (a.JajankenUnlocked) mode += " · V: ROCK";
-                if (a.GyoActive) mode += " · GYO";
-                HudGui.Bar(new Rect(x, y, w, h), player.Aura.Current / Mathf.Max(1f, player.Aura.Capacity), new Color(0.4f, 0.8f, 1f),
-                    $"Aura {player.Aura.Current:0}/{player.Aura.Capacity:0}{mode}");
-                y += h + 4;
+                if (a.GyoActive) Chip("GYO", new Color(0.6f, 0.8f, 1f));
+                if (a.ZetsuActive) Chip("ZETSU", new Color(0.6f, 0.62f, 0.66f));
+                else if (a.RenBroken) Chip("REN BROKEN", HudGui.Bad);
+                else if (a.KenActive) Chip("KEN", new Color(0.82f, 0.55f, 1f));
+                else if (a.RenActive) Chip("REN", new Color(1f, 0.6f, 0.2f));
+                else if (a.TenActive) Chip("TEN", HudGui.AuraCyan);
             }
-            HudGui.Bar(new Rect(x, y, w, h), f.Immediate / 100f, new Color(0.9f, 0.55f, 0.2f), $"Fatigue {f.Immediate:0} · readiness {HudGui.Pct(f.Readiness)}");
-            y += h + 4;
-            HudGui.Bar(new Rect(x, y, w, h), f.Accumulated / 100f, new Color(0.6f, 0.35f, 0.75f), $"Accumulated {f.Accumulated:0} · adaptation {HudGui.Pct(f.AdaptationEfficiency)}");
-            y += h + 6;
+            y += 26f;
+
+            HudGui.Bar(new Rect(x, y, w, 22), player.Health.Fraction, HudGui.Bad, $"<b>{player.Health.Current:0}</b> / {player.Health.Max:0}");
+            y += 26f;
+            HudGui.Bar(new Rect(x, y, w, 16), player.Vitals.Fraction, player.Vitals.IsExhausted ? HudGui.Warn : HudGui.Good,
+                player.Vitals.IsExhausted ? "<size=11><b>EXHAUSTED</b></size>" : $"<size=11><b>Stamina {player.Vitals.Stamina:0}</b></size>");
+            y += 20f;
+            if (p.IsAuraAwakened)
+            {
+                HudGui.Bar(new Rect(x, y, w, 16), a.Current / Mathf.Max(1f, a.Capacity), HudGui.AuraCyan, $"<size=11><b>Aura {a.Current:0} / {a.Capacity:0}</b></size>");
+                y += 20f;
+            }
+
+            // Condition: two slim meters side by side.
+            float half = (w - 8f) / 2f;
+            GUI.Label(new Rect(x, y, half, 16), $"<size=11>Fatigue {f.Immediate:0} · ready {HudGui.Pct(f.Readiness)}</size>", HudGui.Small);
+            GUI.Label(new Rect(x + half + 8f, y, half, 16), $"<size=11>Load {f.Accumulated:0} · adapt {HudGui.Pct(f.AdaptationEfficiency)}</size>", HudGui.Small);
+            y += 16f;
+            HudGui.Bar(new Rect(x, y, half, 8), f.Immediate / 100f, new Color(0.95f, 0.58f, 0.22f), null);
+            HudGui.Bar(new Rect(x + half + 8f, y, half, 8), f.Accumulated / 100f, new Color(0.65f, 0.4f, 0.85f), null);
+            y += 14f;
+
+            string keys = "";
+            if (a.CanKo || a.KoUnlocked) keys += "<color=#ffc552><b>F</b></color> Ko   ";
+            if (a.JajankenUnlocked) keys += "<color=#ffc552><b>V</b></color> Rock   ";
             string strain = p.GetStrain(BodyArea.Upper) > 0.5f || p.GetStrain(BodyArea.Lower) > 0.5f
-                ? $" · <color=#ff8866>strain: upper {p.GetStrain(BodyArea.Upper):0} / legs {p.GetStrain(BodyArea.Lower):0}</color>" : "";
-            GUI.Label(new Rect(x, y, w, 40), $"<size=11>Training sessions {p.TrainingSessions}{strain} · Tab: dashboard · F1: controls</size>", HudGui.Small);
+                ? $"<color=#ff8866>strain {p.GetStrain(BodyArea.Upper):0}/{p.GetStrain(BodyArea.Lower):0}</color>   " : "";
+            GUI.Label(new Rect(x, y, w, 18), $"<size=11>{keys}{strain}<color=#9aa4b2>Sessions {p.TrainingSessions} · <b>Tab</b> dashboard · <b>F1</b> controls</color></size>", HudGui.Small);
 
             // Guided next step, so a new player always knows what to aim for.
-            y += 40f;
-            var goalRect = new Rect(x - 6, y, w + 12, 46f);
+            float goalY = 16f + height;
+            string goal = NextGoal(p);
+            float goalH = HudGui.Wrap.CalcHeight(new GUIContent(goal), w - 20f) + 30f;
+            var goalRect = new Rect(x - 8, goalY, w + 16, goalH);
             HudGui.Panel(goalRect);
-            GUI.Label(new Rect(x, y + 4, w, 40f), $"<color=#ffdd66><b>Next goal</b></color>  <size=11>{NextGoal(p)}</size>", HudGui.Wrap);
+            HudGui.Fill(new Rect(goalRect.x + 1f, goalRect.y + 8f, 3f, goalRect.height - 16f), HudGui.Gold);
+            GUI.Label(new Rect(x + 4, goalY + 6, w, 16), "NEXT GOAL", HudGui.Section);
+            GUI.Label(new Rect(x + 4, goalY + 22, w - 8, goalH - 24), goal, HudGui.Wrap);
         }
 
         static string NextGoal(ProgressionService p)
@@ -187,11 +218,11 @@ namespace HunterAwakening
             if (toTarget.magnitude > labelRange || Vector3.Dot(toTarget, worldCamera.transform.forward) <= 0f) return;
             Vector3 s = worldCamera.WorldToScreenPoint(world);
             var r = new Rect(s.x - 110, Screen.height - s.y - 24, 220, 22);
-            GUI.Label(r, $"<b>{text}</b>", HudGui.Center);
+            if (text.Length > 0) HudGui.ShadowLabel(r, $"<b>{text}</b>", HudGui.Center);
             if (health != null)
-                HudGui.Bar(new Rect(s.x - 60, r.yMax, 120, 10), health.Fraction, HudGui.Bad, null);
+                HudGui.Bar(new Rect(s.x - 60, r.yMax, 120, 9), health.Fraction, HudGui.Bad, null);
             if (extra != null)
-                GUI.Label(new Rect(s.x - 110, r.y - 20, 220, 22), extra, HudGui.Center);
+                HudGui.ShadowLabel(new Rect(s.x - 110, r.y - 20, 220, 22), extra, HudGui.Center);
         }
 
         void DrawPrompt()
@@ -203,20 +234,27 @@ namespace HunterAwakening
             float h = prompt.Contains("\n") ? 50f : 32f;
             var r = new Rect((Screen.width - w) * 0.5f, Screen.height - 72f - h, w, h);
             HudGui.Panel(r);
-            GUI.Label(r, prompt, HudGui.Center);
+            GUI.Label(r, HudGui.Keys(prompt), HudGui.Center);
         }
 
         void DrawNotices(GameSession session)
         {
-            float w = 460f;
+            const float w = 460f;
             float y = Screen.height - 140f;
+            var old = GUI.color;
             for (int i = session.Notices.Count - 1; i >= 0; i--)
             {
-                var r = new Rect(Screen.width - w - 16f, y, w, 26f);
+                var notice = session.Notices[i];
+                // Toasts fade out over their last half second.
+                GUI.color = new Color(1f, 1f, 1f, Mathf.Clamp01((notice.expires - Time.unscaledTime) / 0.5f));
+                float h = Mathf.Max(30f, HudGui.Wrap.CalcHeight(new GUIContent(notice.text), w - 28f) + 12f);
+                var r = new Rect(Screen.width - w - 16f, y - h + 30f, w, h);
                 HudGui.Panel(r);
-                GUI.Label(new Rect(r.x + 8, r.y + 3, r.width - 16, r.height), session.Notices[i].text, HudGui.Label);
-                y -= 30f;
+                HudGui.Fill(new Rect(r.x + 1f, r.y + 7f, 3f, r.height - 14f), HudGui.Gold);
+                GUI.Label(new Rect(r.x + 14, r.y + 6, r.width - 24, r.height - 8), notice.text, HudGui.Wrap);
+                y -= h + 6f;
             }
+            GUI.color = old;
         }
 
         void DrawHelp()

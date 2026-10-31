@@ -15,39 +15,45 @@ namespace HunterAwakening
         public void Draw(GameSession session)
         {
             var p = session.Progression;
+            HudGui.Use();
             float margin = 20f;
             var area = new Rect(margin, margin, Screen.width - margin * 2, Screen.height - margin * 2);
-            HudGui.Fill(area, new Color(0.04f, 0.05f, 0.07f, 0.94f));
+            HudGui.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0.01f, 0.02f, 0.04f, 0.55f));
+            HudGui.Panel(area);
 
-            GUILayout.BeginArea(new Rect(area.x + 12, area.y + 8, area.width - 24, area.height - 16));
-            GUILayout.Label("HUNTER: AWAKENING — Progression", HudGui.Title);
-            GUILayout.Label($"Active play {TimeSpan.FromSeconds(p.State.activePlaySeconds):hh\\:mm\\:ss} · training sessions {p.TrainingSessions} · " +
-                            "progress only accrues while playing", HudGui.Small);
-            GUILayout.Space(6);
+            GUILayout.BeginArea(new Rect(area.x + 18, area.y + 12, area.width - 36, area.height - 24));
+            GUILayout.Label("HUNTER: AWAKENING", HudGui.Eyebrow);
+            GUILayout.Label("Progression", HudGui.Title);
+            GUILayout.Label($"<color=#9aa4b2>Active play</color> {TimeSpan.FromSeconds(p.State.activePlaySeconds):hh\\:mm\\:ss}   " +
+                            $"<color=#9aa4b2>Training sessions</color> {p.TrainingSessions}   <color=#9aa4b2>Progress only accrues while playing</color>",
+                new GUIStyle(HudGui.Center) { fontSize = 12 });
+            GUILayout.Space(8);
 
-            float columnWidth = (area.width - 48) / 3f;
-            float columnHeight = area.height - 120;
+            float columnWidth = (area.width - 36 - 30) / 3f;
+            float columnHeight = area.height - 150;
             GUILayout.BeginHorizontal();
 
-            leftScroll = GUILayout.BeginScrollView(leftScroll, GUILayout.Width(columnWidth), GUILayout.Height(columnHeight));
+            GUILayout.BeginVertical(HudGui.CardBox, GUILayout.Width(columnWidth), GUILayout.Height(columnHeight));
+            leftScroll = GUILayout.BeginScrollView(leftScroll);
             DrawAttributes(p);
             GUILayout.EndScrollView();
+            GUILayout.EndVertical();
 
-            middleScroll = GUILayout.BeginScrollView(middleScroll, GUILayout.Width(columnWidth), GUILayout.Height(columnHeight));
+            GUILayout.BeginVertical(HudGui.CardBox, GUILayout.Width(columnWidth), GUILayout.Height(columnHeight));
+            middleScroll = GUILayout.BeginScrollView(middleScroll);
             DrawFatigue(p);
-            GUILayout.Space(10);
             DrawMastery(p);
-            GUILayout.Space(10);
             DrawBreakthroughs(session, p);
             GUILayout.EndScrollView();
+            GUILayout.EndVertical();
 
-            rightScroll = GUILayout.BeginScrollView(rightScroll, GUILayout.Width(columnWidth), GUILayout.Height(columnHeight));
+            GUILayout.BeginVertical(HudGui.CardBox, GUILayout.Width(columnWidth), GUILayout.Height(columnHeight));
+            rightScroll = GUILayout.BeginScrollView(rightScroll);
             DrawLastSession(session.LastTrainingReport);
-            GUILayout.Space(10);
             DrawCombat(session.LastCombatReport);
-            GUILayout.Space(10);
             DrawHistory(p);
             GUILayout.EndScrollView();
+            GUILayout.EndVertical();
 
             GUILayout.EndHorizontal();
             GUILayout.FlexibleSpace();
@@ -57,10 +63,9 @@ namespace HunterAwakening
 
         static void DrawAttributes(ProgressionService p)
         {
-            GUILayout.Label("Body", HudGui.Header);
+            HudGui.SectionHeader("Body");
             foreach (var id in AttributeInfo.Physical) AttributeRow(p, id);
-            GUILayout.Space(10);
-            GUILayout.Label("Aura", HudGui.Header);
+            HudGui.SectionHeader("Aura");
             if (!p.IsAuraAwakened)
             {
                 GUILayout.Label("Dormant. Complete 3 training sessions, then meditate at the Meditation Stone.", HudGui.Wrap);
@@ -72,14 +77,19 @@ namespace HunterAwakening
         static void AttributeRow(ProgressionService p, AttributeId id)
         {
             double v = p.GetAttribute(id);
-            GUILayout.Label($"<b>{AttributeInfo.Label(id)}</b>  {v:0.00}", HudGui.Label);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"<b>{AttributeInfo.Label(id)}</b>", HudGui.Label);
+            GUILayout.FlexibleSpace();
+            GUILayout.Label($"<color=#ffc552><b>{v:0.00}</b></color>", HudGui.Label);
+            GUILayout.EndHorizontal();
             GUILayout.Label(StatEffects.Describe(id, v), HudGui.Small);
+            GUILayout.Space(3);
         }
 
         static void DrawFatigue(ProgressionService p)
         {
             var f = p.Fatigue;
-            GUILayout.Label("Condition", HudGui.Header);
+            HudGui.SectionHeader("Condition");
             GUILayout.Label($"Immediate fatigue <b>{f.Immediate:0}</b> → readiness {HudGui.Pct(f.Readiness)}, performance ×{f.PerformanceMultiplier:0.00}", HudGui.Wrap);
             GUILayout.Label($"Accumulated fatigue <b>{f.Accumulated:0}</b> → adaptation efficiency {HudGui.Pct(f.AdaptationEfficiency)}", HudGui.Wrap);
             string advice = f.Readiness < 0.6f ? "Readiness is low: execution and gains suffer. Rest at the bench."
@@ -97,7 +107,7 @@ namespace HunterAwakening
 
         static void DrawBreakthroughs(GameSession session, ProgressionService p)
         {
-            GUILayout.Label("Breakthroughs", HudGui.Header);
+            HudGui.SectionHeader("Breakthroughs");
             var tracker = session.Player != null ? session.Player.GetComponent<BreakthroughTracker>() : null;
             foreach (var b in Breakthroughs.All)
             {
@@ -116,7 +126,7 @@ namespace HunterAwakening
 
         static void DrawMastery(ProgressionService p)
         {
-            GUILayout.Label("Technique mastery", HudGui.Header);
+            HudGui.SectionHeader("Technique mastery");
             foreach (TechniqueId id in Enum.GetValues(typeof(TechniqueId)))
             {
                 bool auraTechnique = id >= TechniqueId.Ten; // Ten, Ren, Zetsu, Gyo, Ken, Ko
@@ -131,15 +141,27 @@ namespace HunterAwakening
                     GUILayout.Label($"<b>Ko</b> <size=11>(locked: Ren mastery {MasteryMilestones.KoUnlockRenMastery:0}+ and Max Output {MasteryMilestones.KoUnlockMaxOutput:0}+)</size>", HudGui.Label);
                     continue;
                 }
+                if (id == TechniqueId.Jajanken && !p.KnowsInsight(AuraController.JajankenInsight))
+                {
+                    GUILayout.Label($"<b>Jajanken</b> <size=11>(locked: know Ko, Ren mastery {MasteryMilestones.JajankenUnlockRenMastery:0}+)</size>", HudGui.Label);
+                    continue;
+                }
                 float m = p.GetMastery(id);
-                GUILayout.Label($"<b>{AttributeInfo.Label(id)}</b>  {m:0.0} ({MasteryMilestones.Tier(m)})", HudGui.Label);
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"<b>{AttributeInfo.Label(id)}</b>", HudGui.Label);
+                GUILayout.FlexibleSpace();
+                GUILayout.Label($"<size=11><color=#9aa4b2>{MasteryMilestones.Tier(m)}</color></size>  <color=#ffc552><b>{m:0.0}</b></color>", HudGui.Label);
+                GUILayout.EndHorizontal();
+                var bar = GUILayoutUtility.GetRect(1f, 6f, GUILayout.ExpandWidth(true));
+                HudGui.Bar(bar, Mathf.Min(m, 100f) / 100f, m >= 100f ? HudGui.Gold : HudGui.AuraCyan, null);
                 GUILayout.Label($"Next: {MasteryMilestones.Next(id, m)}", HudGui.Small);
+                GUILayout.Space(2);
             }
         }
 
         static void DrawLastSession(TrainingReport r)
         {
-            GUILayout.Label("Last training session", HudGui.Header);
+            HudGui.SectionHeader("Last training session");
             if (r == null)
             {
                 GUILayout.Label("No session yet this run. Walk to a station and press E.", HudGui.Small);
@@ -164,7 +186,7 @@ namespace HunterAwakening
 
         static void DrawCombat(CombatReport r)
         {
-            GUILayout.Label("Last sparring match", HudGui.Header);
+            HudGui.SectionHeader("Last sparring match");
             if (r == null)
             {
                 GUILayout.Label("No match yet this run. The arena post starts one.", HudGui.Small);
@@ -177,7 +199,7 @@ namespace HunterAwakening
 
         static void DrawHistory(ProgressionService p)
         {
-            GUILayout.Label("Recent history", HudGui.Header);
+            HudGui.SectionHeader("Recent history");
             var history = p.State.history;
             for (int i = history.Count - 1; i >= Mathf.Max(0, history.Count - 10); i--)
             {
@@ -195,17 +217,17 @@ namespace HunterAwakening
             GUILayout.Space(20);
             if (!confirmDelete)
             {
-                if (GUILayout.Button("Delete save…", GUILayout.Width(120), GUILayout.Height(28))) confirmDelete = true;
+                if (GUILayout.Button("Delete save…", HudGui.DangerButton, GUILayout.Width(130), GUILayout.Height(30))) confirmDelete = true;
             }
             else
             {
                 GUILayout.Label("Erase all progress?", HudGui.Label, GUILayout.Width(150));
-                if (GUILayout.Button("Yes, delete", GUILayout.Width(110), GUILayout.Height(28))) session.DeleteSaveAndRestart();
+                if (GUILayout.Button("Yes, delete", HudGui.DangerButton, GUILayout.Width(110), GUILayout.Height(30))) session.DeleteSaveAndRestart();
                 if (GUILayout.Button("Cancel", GUILayout.Width(80), GUILayout.Height(28))) confirmDelete = false;
             }
             GUILayout.FlexibleSpace();
             GUILayout.Label($"<size=11>Save file: {session.Saves.FilePath}</size>", HudGui.Small);
-            if (GUILayout.Button("Close (Tab)", GUILayout.Width(110), GUILayout.Height(28))) session.DashboardOpen = false;
+            if (GUILayout.Button("Close (Tab)", HudGui.PrimaryButton, GUILayout.Width(130), GUILayout.Height(30))) session.DashboardOpen = false;
             GUILayout.EndHorizontal();
         }
     }
