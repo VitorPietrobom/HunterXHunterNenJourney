@@ -374,6 +374,11 @@ namespace HunterAwakening
             Tracker?.RegisterPlayerHit(result, dealt, current.heavy, hit.ren, punish, hit.ambush);
 
             Vector3 impactPoint = target.transform.position + Vector3.up * 0.4f;
+            DamageNumbers.Show(target.transform.position + Vector3.up * 1.5f, dealt,
+                currentIsRock || currentIsKo ? DamageNumbers.Kind.Finisher
+                : result == HitResult.Guarded ? DamageNumbers.Kind.Blocked
+                : result == HitResult.GuardBroken ? DamageNumbers.Kind.GuardBreak
+                : hit.ren ? DamageNumbers.Kind.Ren : DamageNumbers.Kind.Hit);
             if (currentIsRock)
             {
                 P.ApplyMastery(TechniqueId.Jajanken, rockCharge);
@@ -422,6 +427,7 @@ namespace HunterAwakening
                 P.ApplyMastery(TechniqueId.Dodge, 1f);
                 tracker?.RegisterPerfectDodge();
                 GameSession.Instance.PushNotice("Perfect dodge!", 1f);
+                DamageNumbers.Callout(transform.position + Vector3.up * 1.8f, "DODGE");
                 HitFeedback.SlowMotion(0.3f, 0.45f);
                 ImpactEffects.PerfectDodge(transform.position + Vector3.up * 0.3f);
                 PerfectDodged?.Invoke();
@@ -442,6 +448,7 @@ namespace HunterAwakening
                     P.ApplyMastery(TechniqueId.Block, 1f);
                     tracker?.RegisterParry();
                     GameSession.Instance.PushNotice("Parry! The rival is open.", 1.5f);
+                    DamageNumbers.Callout(transform.position + Vector3.up * 1.8f, "PARRY");
                     HitFeedback.Impact(0.12f, 0.3f);
                     HitFeedback.SlowMotion(0.4f, 0.4f);
                     ImpactEffects.Parry(transform.position + transform.forward * 0.5f + Vector3.up * 0.5f);
@@ -493,6 +500,7 @@ namespace HunterAwakening
             }
 
             float dealt = health.TakeDamage(damage);
+            DamageNumbers.Show(transform.position + Vector3.up * 1.6f, dealt, blocked ? DamageNumbers.Kind.Blocked : DamageNumbers.Kind.Taken);
             P.AddExertion(1.5f);
             tracker?.RegisterPlayerDamaged(dealt, blocked, tenWasActive || renWasActive);
             if (!blocked && dealt > 0f) HitTaken?.Invoke();

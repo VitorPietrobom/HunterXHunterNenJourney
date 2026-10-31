@@ -226,9 +226,13 @@ namespace HunterAwakening
                 "WASD move · Mouse look · Shift sprint · Space jump · Ctrl dodge\n" +
                 "LMB light · RMB heavy · Q block (tap just before a hit to parry)\n" +
                 "E interact · [ / ] drill intensity · Space/LMB drill action\n" +
-                "T Ten · hold R Ren · Z Zetsu · hold G Gyo · Ten+Ren Ken · F Ko · hold V Jajanken: Rock (once learned)\n" +
+                "T Ten · hold R Ren · Z Zetsu · hold G Gyo · Ten+Ren Ken\n" +
+                "F Ko · hold V Jajanken: Rock (once learned)\n" +
                 "Tab dashboard · Esc pause/settings · F5 save · F9 reload · F1 hide";
-            var r = new Rect(Screen.width - 476f, 16f, 460f, 112f);
+            const float w = 460f;
+            // Sized to the text, so a new line of controls never spills out of the panel.
+            float h = HudGui.Wrap.CalcHeight(new GUIContent(text), w - 20f) + 12f;
+            var r = new Rect(Screen.width - w - 16f, 16f, w, h);
             HudGui.Panel(r);
             GUI.Label(new Rect(r.x + 10, r.y + 6, r.width - 20, r.height - 12), text, HudGui.Wrap);
         }

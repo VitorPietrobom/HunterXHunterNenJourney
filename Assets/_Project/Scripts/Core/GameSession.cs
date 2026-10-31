@@ -65,6 +65,7 @@ namespace HunterAwakening
             Progression.ExerciseApplied += OnExerciseApplied;
             if (GetComponent<HitFeedback>() == null) gameObject.AddComponent<HitFeedback>();
             if (GetComponent<ImpactEffects>() == null) gameObject.AddComponent<ImpactEffects>();
+            if (GetComponent<DamageNumbers>() == null) gameObject.AddComponent<DamageNumbers>();
             Progression.Notice += text => PushNotice(text, 5f);
         }
 
