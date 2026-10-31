@@ -81,6 +81,9 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 - [ ] ⭐ Playtest and tune: attack timings, telegraph length, guard adaptation, rival HP/damage.
 - [ ] ◻️ More archetypes (GDD §8.4): bruiser, speed specialist, ranged aura user, technical rival.
 - [x] ⚠️ **Hit feedback**: hit-stop, camera shake, slow motion on parries/perfect dodges/ambushes/knockouts (toggleable).
+- [x] ⚠️ **Floating damage numbers** (white plain, orange Ren/guard break, gold Rock/Ko, grey blocked, red taken; PARRY/DODGE callouts) and a **white impact flash** on struck fighters.
+- [x] ⚠️ **Rival auras**: each opponent has its own colour (Killua white-blue, Kurapika blue, Hisoka pink, Meruem violet) sized by presence — a calm shroud in fights that flares into Ren on every wind-up (with a sound), a second attack cue.
+- [x] ⚠️ **Sounds** for raising Ren, the Jajanken chant beats, Rock's release and rival wind-up flares (synthesised).
 - [x] ⚠️ **Impact VFX and sounds**: spark bursts and code-synthesised sounds (thud, crack, clang, block, whoosh, Ko boom); volume in the pause menu. *Placeholder quality — replace with real assets later.*
 
 ## Player model & animation
@@ -95,6 +98,7 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 
 - [ ] ◻️ Replace the IMGUI placeholder HUD/dashboard with uGUI or UI Toolkit.
 - [ ] ◻️ Routine-builder UI (with routine training).
+- [x] ⚠️ **Reset progress** in the pause menu (two-step confirm): deletes the save and restarts fresh, settings kept — for testers of a built game.
 - [x] ⚠️ **Pause/settings menu** (Esc): sensitivity, invert Y, fps cap, VSync, FPS counter, camera shake and hit-stop toggles (saved in PlayerPrefs).
 - [ ] ◻️ Key rebinding.
 - [x] **Playability pass**: dashboard pauses the game; out-of-combat health regen; drill prompts explain what each drill trains; station labels visible from 60 m; arena remembers the chosen opponent; HUD "Next goal" guide from first workout to Elite.
@@ -116,7 +120,8 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 
 - [ ] ⭐ Playtest pass against the MVP definition of done; log findings here.
 - [ ] ◻️ Tests for combat scoring, fatigue/readiness and the anti-farming rules (idle, spam, sloppy repetition).
-- [ ] ◻️ Profile a standalone build (frame time spikes seen in the Editor ~20 ms).
+- [x] **Render cost measured** (1080p, both auras flaring in the arena vs Meruem): 3.8 ms/frame — post-processing 0.9 ms, Meruem 0.8 ms (454k skinned verts after face splits), aura shells 0.35 ms. Comfortably inside 144 fps (6.9 ms). *Still worth profiling a standalone build on the target PC.*
+- [ ] ◻️ Re-export Meruem (and Hisoka) with smooth shared normals to cut their vertex count ~3×.
 - [ ] ◻️ **IP:** names, characters and Killua's model are Hunter x Hunter IP. Fine for a personal prototype; a commercial release needs original content (GDD §1).
 
 ---
