@@ -30,6 +30,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _Glint: 0.12
+    - _HitFlash: 0
     - _OutlineWidth: 1.6
     - _RimStrength: 0.35
     - _RimWidth: 0.32

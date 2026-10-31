@@ -144,7 +144,8 @@ namespace HunterAwakening.EditorTools
             material.SetTexture("_EmissionMap", seal);
             material.SetColor("_EmissionColor", glow * 1.6f);
             material.EnableKeyword("_EMISSION");
-            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            // Not "None": URP re-validates materials and switches emission off when the GI flag is None.
+            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
             material.SetFloat("_Smoothness", 0.25f);
             EditorUtility.SetDirty(material);
         }
