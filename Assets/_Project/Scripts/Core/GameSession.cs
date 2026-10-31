@@ -33,7 +33,9 @@ namespace HunterAwakening
         /// <summary>Pause menu open: time is stopped and gameplay input ignored.</summary>
         public bool Paused { get; set; }
         /// <summary>True while any full-screen UI owns the mouse and keyboard.</summary>
-        public bool InputBlocked => DashboardOpen || Paused;
+        /// <summary>The launch title screen is up (see TitleScreen).</summary>
+        public bool TitleOpen { get; set; }
+        public bool InputBlocked => DashboardOpen || Paused || TitleOpen;
         public bool ShowHelp { get; set; } = true;
         public bool IsResting { get; set; }
         public TrainingReport LastTrainingReport { get; private set; }
@@ -66,6 +68,7 @@ namespace HunterAwakening
             if (GetComponent<HitFeedback>() == null) gameObject.AddComponent<HitFeedback>();
             if (GetComponent<ImpactEffects>() == null) gameObject.AddComponent<ImpactEffects>();
             if (GetComponent<DamageNumbers>() == null) gameObject.AddComponent<DamageNumbers>();
+            if (GetComponent<TitleScreen>() == null) gameObject.AddComponent<TitleScreen>();
             Progression.Notice += text => PushNotice(text, 5f);
         }
 
@@ -87,7 +90,7 @@ namespace HunterAwakening
             notices.RemoveAll(n => Time.unscaledTime > n.expires);
 
             var input = player != null ? player.Input : null;
-            if (input != null)
+            if (input != null && !TitleOpen)
             {
                 if (input.PausePressed) SetPaused(!Paused);
                 if (input.DashboardPressed && !Paused) DashboardOpen = !DashboardOpen;

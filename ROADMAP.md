@@ -96,7 +96,9 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 
 ## UI
 
-- [ ] ◻️ Replace the IMGUI placeholder HUD/dashboard with uGUI or UI Toolkit.
+- [x] ⚠️ **UI theme** (`HudGui`): rounded ink panels with a gold edge, Hunter-gold accent, shadowed text, rounded bars, themed buttons/checkboxes/sliders/scrollbars — all generated at runtime. Restyled pause menu (sections, aligned rows, gold Resume, danger Reset), HUD (vitals card with aura chips and key hints, next-goal card, fading toasts, gold key prompts) and dashboard (card columns, mastery bars, Jajanken locked state).
+- [x] ⚠️ **Title screen** on launch: the camera circles Gon behind the HUNTER / AWAKENING logo; Continue / Begin, New game (confirm) and Quit; Enter starts. Shown once per launch (so once per Play in the Editor).
+- [ ] ◻️ Port the IMGUI UI to UI Toolkit if it needs animation, controller navigation or localisation.
 - [ ] ◻️ Routine-builder UI (with routine training).
 - [x] ⚠️ **Reset progress** in the pause menu (two-step confirm): deletes the save and restarts fresh, settings kept — for testers of a built game.
 - [x] ⚠️ **Pause/settings menu** (Esc): sensitivity, invert Y, fps cap, VSync, FPS counter, camera shake and hit-stop toggles (saved in PlayerPrefs).

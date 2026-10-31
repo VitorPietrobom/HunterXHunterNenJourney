@@ -41,6 +41,8 @@ namespace HunterAwakening
             Cursor.lockState = uiOpen ? CursorLockMode.None : CursorLockMode.Locked;
             Cursor.visible = uiOpen;
 
+            // On the title screen the camera slowly circles the player.
+            if (GameSession.Instance != null && GameSession.Instance.TitleOpen) yaw += 7f * Time.unscaledDeltaTime;
             if (!uiOpen && input != null)
             {
                 Vector2 look = input.Look;

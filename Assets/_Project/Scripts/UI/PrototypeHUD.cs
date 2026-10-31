@@ -38,7 +38,7 @@ namespace HunterAwakening
         void OnGUI()
         {
             var session = GameSession.Instance;
-            if (session == null || player == null) return;
+            if (session == null || player == null || session.TitleOpen) return;
             if (worldCamera == null) worldCamera = Camera.main;
             HudGui.Use();
 
