@@ -12,7 +12,7 @@ namespace HunterAwakening
     /// Reserve, output, control and efficiency stay separate so they create different strengths and weaknesses:
     /// when Max Output outgrows Control Precision, Ren leaks more and can be knocked loose by hits.
     /// </summary>
-    public class AuraController : MonoBehaviour
+    public class AuraController : MonoBehaviour, IAuraSource
     {
         [SerializeField] Light auraLight;
         [SerializeField] Color tenColor = new Color(0.4f, 0.9f, 1f);

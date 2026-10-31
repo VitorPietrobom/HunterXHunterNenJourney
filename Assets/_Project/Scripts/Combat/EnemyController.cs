@@ -110,6 +110,8 @@ namespace HunterAwakening
             spawnRotation = transform.rotation;
             SetColor(baseColor);
             if (guardVisual != null) guardVisual.SetActive(false);
+            // Animated fighters show their aura; the capsule fallback keeps its colour cues only.
+            if (GetComponent<EnemyAnimator>() != null && GetComponent<RivalAura>() == null) gameObject.AddComponent<RivalAura>();
         }
 
         void OnEnable() => All.Add(this);
@@ -130,6 +132,7 @@ namespace HunterAwakening
             damageReduction = tier.damageReduction;
             presence = tier.presence;
             if (TryGetComponent(out RivalModels models)) models.Show(tier.id);
+            if (TryGetComponent(out RivalAura aura)) aura.SetTier(tier);
             health.SetMax(maxHealth, false);
             health.RestoreFull();
         }

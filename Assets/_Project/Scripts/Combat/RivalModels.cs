@@ -41,6 +41,7 @@ namespace HunterAwakening
                 if (entry.model != null) entry.model.gameObject.SetActive(entry.model == chosen);
             Current = chosen;
             GetComponent<EnemyAnimator>().UseModel(chosen);
+            if (TryGetComponent(out AuraVisual aura)) aura.Rebind(chosen);
         }
     }
 }

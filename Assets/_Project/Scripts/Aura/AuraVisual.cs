@@ -9,7 +9,6 @@ namespace HunterAwakening
     /// larger as Max Output and Ren mastery grow (<see cref="AuraController.RenPresence"/>); Ken is dense and tight;
     /// Gyo shows only at the eyes; a broken Ren sputters out in red.
     /// </summary>
-    [RequireComponent(typeof(AuraController))]
     public class AuraVisual : MonoBehaviour
     {
         struct Look
@@ -56,7 +55,7 @@ namespace HunterAwakening
         [Tooltip("Denser meshes (inner hair layers) get no shell: skinning them twice costs too much for what shows.")]
         [SerializeField] int maxShellVertices = 60000;
 
-        AuraController aura;
+        IAuraSource aura;
         PlayerCombat combat;
         Transform hand;
         float fistDebt;
@@ -83,7 +82,7 @@ namespace HunterAwakening
 
         void Awake()
         {
-            aura = GetComponent<AuraController>();
+            aura = GetComponent<IAuraSource>();
             combat = GetComponent<PlayerCombat>();
             if (combat != null) combat.RockReleased += OnRockReleased;
         }
@@ -106,13 +105,38 @@ namespace HunterAwakening
             shellMaterial = new Material(shellShader);
             var particleMaterial = new Material(particleShader);
 
-            var animator = GetComponent<PlayerAnimator>() is PlayerAnimator pa ? pa.Animator : null;
-            if (animator != null && animator.isHuman) BuildFromModel(animator);
-            else AddSegment(transform, null, transform.position + Vector3.up * 1.6f, 0.3f); // capsule fallback
+            Bind(CurrentAnimator());
 
             flames = CreateSystem("AuraFlames", particleMaterial, false);
             streaks = CreateSystem("AuraStreaks", particleMaterial, true);
             ready = true;
+        }
+
+        /// <summary>The model whose body the aura flows from: the player's, or the rival model currently shown.</summary>
+        Animator CurrentAnimator()
+        {
+            if (GetComponent<PlayerAnimator>() is PlayerAnimator pa) return pa.Animator;
+            if (GetComponent<RivalModels>() is RivalModels rm && rm.Current != null) return rm.Current;
+            return GetComponentInChildren<Animator>();
+        }
+
+        /// <summary>Moves the aura onto another model (a rival tier swapped its fighter).</summary>
+        public void Rebind(Animator animator)
+        {
+            if (!ready) return; // Start binds whichever model is current
+            foreach (var shell in shells)
+                if (shell != null) Destroy(shell.gameObject);
+            shells.Clear();
+            segments.Clear();
+            totalWeight = 0f;
+            head = hand = null;
+            Bind(animator);
+        }
+
+        void Bind(Animator animator)
+        {
+            if (animator != null && animator.isHuman) BuildFromModel(animator);
+            else AddSegment(transform, null, transform.position + Vector3.up * 1.6f, 0.3f); // capsule fallback
         }
 
         void BuildFromModel(Animator animator)
@@ -352,7 +376,7 @@ namespace HunterAwakening
                 p.startLifetime = 0.4f;
                 streaks.Emit(p, 1);
             }
-            HitFeedback.Shake(0.08f * presence);
+            if (combat != null) HitFeedback.Shake(0.08f * presence); // only the player's own Ren shakes the camera
         }
 
         /// <summary>A broken Ren: red aura scatters off the body.</summary>
