@@ -9,6 +9,7 @@ namespace HunterAwakening
         bool invertY, vsync, showFps, shake, hitStop;
         int fpsIndex;
         bool loaded;
+        bool confirmReset;
 
         public void Open()
         {
@@ -22,13 +23,14 @@ namespace HunterAwakening
             fpsIndex = System.Array.IndexOf(GameSettings.FrameRateOptions, GameSettings.FrameRateCap);
             if (fpsIndex < 0) fpsIndex = System.Array.IndexOf(GameSettings.FrameRateOptions, FrameRateSettings.TargetFrameRate);
             loaded = true;
+            confirmReset = false;
         }
 
         public void Draw(GameSession session)
         {
             if (!loaded) Open();
             HudGui.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.55f));
-            float w = Mathf.Min(460f, Screen.width - 40f), h = 480f;
+            float w = Mathf.Min(460f, Screen.width - 40f), h = Mathf.Min(560f, Screen.height - 40f);
             var area = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
             HudGui.Panel(area);
 
@@ -69,6 +71,17 @@ namespace HunterAwakening
             if (Application.isEditor) GUILayout.Label("<size=11>In the Editor, Quit just saves — stop Play mode to exit.</size>", HudGui.Small);
 
             GUILayout.FlexibleSpace();
+            // Starting over takes two clicks: the second, explicit one deletes the save.
+            if (confirmReset)
+            {
+                GUILayout.Label("Delete all progress and start a new Hunter? Settings are kept.", HudGui.Label);
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Yes, start over", GUILayout.Height(28))) session.DeleteSaveAndRestart();
+                if (GUILayout.Button("Cancel", GUILayout.Height(28))) confirmReset = false;
+                GUILayout.EndHorizontal();
+            }
+            else if (GUILayout.Button("Reset progress…", GUILayout.Height(24))) confirmReset = true;
+            GUILayout.Space(6);
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Resume (Esc)", GUILayout.Height(32))) session.SetPaused(false);
             if (GUILayout.Button("Save", GUILayout.Height(32)) && session.Save()) session.PushNotice("Game saved.");

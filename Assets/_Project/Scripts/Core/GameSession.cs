@@ -141,10 +141,13 @@ namespace HunterAwakening
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
 
+        /// <summary>Starts over with a fresh character (the pause menu's Reset progress). Settings are kept.</summary>
         public void DeleteSaveAndRestart()
         {
             leavingScene = true;
+            SetPaused(false); // timeScale survives the reload
             Saves.Delete();
+            PlayerPrefs.DeleteKey(ArenaController.TierPref);
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
 

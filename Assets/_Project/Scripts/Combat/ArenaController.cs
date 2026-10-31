@@ -25,7 +25,7 @@ namespace HunterAwakening
         public EnemyController Enemy => enemy;
         RivalTier Tier => tiers != null && tiers.Length > 0 ? tiers[Mathf.Clamp(tierIndex, 0, tiers.Length - 1)] : null;
 
-        const string TierPref = "ha.arenaTier";
+        public const string TierPref = "ha.arenaTier";
 
         void Start()
         {
