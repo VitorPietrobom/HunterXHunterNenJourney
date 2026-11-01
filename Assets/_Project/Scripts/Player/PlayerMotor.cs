@@ -144,7 +144,16 @@ namespace HunterAwakening
 
             controller.Move((horizontal + Vector3.up * verticalVelocity) * dt);
 
-            if (IsMoving && !IsDodging && (combat == null || !combat.IsAttacking))
+            var lockTarget = combat != null ? combat.LockTarget : null;
+            if (lockTarget != null && !IsDodging && !combat.IsAttacking)
+            {
+                // Locked on: keep facing the opponent and strafe around them.
+                Vector3 to = lockTarget.transform.position - transform.position;
+                to.y = 0f;
+                if (to.sqrMagnitude > 0.01f)
+                    transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(to, Vector3.up), 1f - Mathf.Exp(-turnSpeed * dt));
+            }
+            else if (IsMoving && !IsDodging && (combat == null || !combat.IsAttacking))
             {
                 var target = Quaternion.LookRotation(direction, Vector3.up);
                 transform.rotation = Quaternion.Slerp(transform.rotation, target, 1f - Mathf.Exp(-turnSpeed * dt));

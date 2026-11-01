@@ -29,8 +29,11 @@ namespace HunterAwakening
         public static float SensitivityScale { get; set; } = 1f;
         public static bool InvertY { get; set; }
 
+        PlayerCombat combat;
+
         void Start()
         {
+            if (target != null) combat = target.GetComponent<PlayerCombat>();
             if (target != null) yaw = target.eulerAngles.y;
         }
 
@@ -43,7 +46,21 @@ namespace HunterAwakening
 
             // On the title screen the camera slowly circles the player.
             if (GameSession.Instance != null && GameSession.Instance.TitleOpen) yaw += 7f * Time.unscaledDeltaTime;
-            if (!uiOpen && input != null)
+            var lockTarget = combat != null ? combat.LockTarget : null;
+            if (!uiOpen && lockTarget != null)
+            {
+                // Locked on: swing behind the player so both fighters stay in frame.
+                Vector3 to = lockTarget.transform.position - target.position;
+                to.y = 0f;
+                if (to.sqrMagnitude > 0.01f)
+                {
+                    float bearing = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
+                    float blend = 1f - Mathf.Exp(-8f * Time.unscaledDeltaTime);
+                    yaw = Mathf.LerpAngle(yaw, bearing, blend);
+                    pitch = Mathf.Lerp(pitch, 14f, blend);
+                }
+            }
+            else if (!uiOpen && input != null)
             {
                 Vector2 look = input.Look;
                 float s = sensitivity * SensitivityScale;

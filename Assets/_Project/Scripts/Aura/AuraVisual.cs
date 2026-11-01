@@ -84,12 +84,20 @@ namespace HunterAwakening
         {
             aura = GetComponent<IAuraSource>();
             combat = GetComponent<PlayerCombat>();
-            if (combat != null) combat.RockReleased += OnRockReleased;
+            if (combat != null)
+            {
+                combat.RockReleased += OnRockReleased;
+                combat.BladeSwept += OnBladeSwept;
+            }
         }
 
         void OnDestroy()
         {
-            if (combat != null) combat.RockReleased -= OnRockReleased;
+            if (combat != null)
+            {
+                combat.RockReleased -= OnRockReleased;
+                combat.BladeSwept -= OnBladeSwept;
+            }
         }
 
         void Start()
@@ -419,6 +427,28 @@ namespace HunterAwakening
                 p.velocity = dir * (2f + 5f * charge);
                 p.startSize = 0.08f + 0.2f * charge;
                 p.startLifetime = 0.35f;
+                streaks.Emit(p, 1);
+            }
+        }
+
+        /// <summary>Scissors: a crescent of aura sweeps across the front, the blade's reach made visible.</summary>
+        void OnBladeSwept(float charge)
+        {
+            if (!ready) return;
+            var p = new ParticleSystem.EmitParams { startColor = Color.Lerp(aura.LookColor, Color.white, 0.5f) };
+            Vector3 center = transform.position + Vector3.up * 1.0f;
+            const int count = 70;
+            for (int i = 0; i < count; i++)
+            {
+                float t = i / (count - 1f);
+                float angle = Mathf.Lerp(-80f, 80f, t) * Mathf.Deg2Rad;
+                Vector3 dir = transform.rotation * new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle));
+                Vector3 tangent = transform.rotation * new Vector3(Mathf.Cos(angle), 0f, -Mathf.Sin(angle));
+                float reach = Random.Range(1.2f, 3.6f);
+                p.position = center + dir * reach + Vector3.up * Random.Range(-0.2f, 0.25f);
+                p.velocity = tangent * (6f + 4f * charge) + dir * 1.5f;
+                p.startSize = 0.07f + 0.08f * charge;
+                p.startLifetime = Random.Range(0.18f, 0.3f);
                 streaks.Emit(p, 1);
             }
         }

@@ -57,6 +57,17 @@ namespace HunterAwakening
             name = "Rock", technique = TechniqueId.Jajanken, heavy = true, startup = 0.1f, active = 0.12f, recovery = 0.7f,
             baseDamage = 20f, staminaCost = 25f, range = 2.4f, moveMultiplier = 0f
         };
+        [SerializeField] AttackSpec scissorsAttack = new AttackSpec
+        {
+            name = "Scissors", technique = TechniqueId.Jajanken, heavy = true, startup = 0.08f, active = 0.1f, recovery = 0.45f,
+            baseDamage = 20f, staminaCost = 18f, range = 4f, moveMultiplier = 0f
+        };
+        [SerializeField] AttackSpec paperAttack = new AttackSpec
+        {
+            name = "Paper", technique = TechniqueId.Jajanken, heavy = true, startup = 0.12f, active = 0.05f, recovery = 0.5f,
+            baseDamage = 20f, staminaCost = 18f, range = 22f, moveMultiplier = 0f
+        };
+        [SerializeField] float lockOnRange = 18f;
         [SerializeField] float blockDamageMultiplier = 0.3f;
         [SerializeField] float blockStaminaPerHit = 14f;
         [SerializeField] float parryWindow = 0.18f;
@@ -92,6 +103,28 @@ namespace HunterAwakening
         bool currentIsRock;
         float rockCharge;
         HitFlash hitFlash;
+
+        /// <summary>Jajanken's three hands: the chant ends in whichever one is thrown.</summary>
+        public enum Hand { Rock, Paper, Scissors }
+        Hand currentHand;
+        /// <summary>Raised when a Scissors blade sweeps (for the slash effect), with the charge it carries.</summary>
+        public event Action<float> BladeSwept;
+        public bool PaperUnlocked => P.GetMastery(TechniqueId.Jajanken) >= MasteryMilestones.JajankenPaper;
+        public bool ScissorsUnlocked => P.GetMastery(TechniqueId.Jajanken) >= MasteryMilestones.JajankenScissors;
+
+        /// <summary>The opponent the camera and attacks are locked onto (middle mouse / X), if any.</summary>
+        public EnemyController LockTarget { get; private set; }
+
+        // Light, light, heavy: follow-ups pressed during a connected light's recovery chain on.
+        // A press made during the swing itself is buffered briefly, so mashing chains too.
+        const float ComboBufferTime = 0.3f;
+        int comboStep;
+        bool lastConnected;
+        bool comboFinisher;
+        float bufferedAt = float.NegativeInfinity;
+        bool bufferedHeavy;
+        /// <summary>Hits in the current chain (1 = a single attack).</summary>
+        public int ComboCount => IsAttacking ? comboStep + 1 : 0;
         int chantStage;
         static readonly string[] Chant = { "Saisho wa guu!", "Jan…", "Ken…", "— everything into the fist!" };
         /// <summary>Wind-up time of the current attack, after fatigue.</summary>
@@ -147,7 +180,22 @@ namespace HunterAwakening
             if (!blocked && input.BlockPressed) blockPressedTime = Time.time;
             IsBlocking = !blocked && input.BlockHeld && CurrentPhase == Phase.None && !IsChargingRock && !motor.IsDodging && !vitals.IsExhausted;
 
+            TickLockOn(blocked);
+            if (!blocked && IsAttacking && current == lightAttack && (input.LightPressed || input.HeavyPressed))
+            {
+                bufferedAt = Time.time;
+                bufferedHeavy = input.HeavyPressed;
+            }
             if (IsChargingRock) TickChant(Time.deltaTime, blocked);
+            else if (!blocked && CurrentPhase == Phase.Recovery && current == lightAttack && lastConnected && comboStep < 2
+                     && Time.time - bufferedAt <= ComboBufferTime)
+            {
+                // Cancel a connected light's recovery into the next hit of the chain.
+                comboStep++;
+                comboFinisher = bufferedHeavy;
+                bufferedAt = float.NegativeInfinity;
+                Begin(comboFinisher ? heavyAttack : lightAttack, chained: true);
+            }
             else if (!blocked && CurrentPhase == Phase.None && !motor.IsDodging)
             {
                 if (input.LightPressed) Begin(lightAttack);
@@ -220,9 +268,20 @@ namespace HunterAwakening
                 CancelChant(null);
                 return;
             }
+            // The last word of the chant picks the hand: release for Rock, or throw Paper / Scissors.
+            if (input.HeavyPressed && PaperUnlocked)
+            {
+                Release(Hand.Paper);
+                return;
+            }
+            if (input.LightPressed && ScissorsUnlocked)
+            {
+                Release(Hand.Scissors);
+                return;
+            }
             if (!input.HatsuHeld)
             {
-                ReleaseRock();
+                Release(Hand.Rock);
                 return;
             }
             float drain = StatEffects.JajankenAuraPerSecond(P.GetAttribute(AttributeId.MaxOutput)) * dt;
@@ -242,11 +301,11 @@ namespace HunterAwakening
                 ImpactEffects.ChantBeat(stage);
                 if (stage == 3) HitFeedback.Shake(0.12f);
             }
-            var target = NearestEnemy(engageRadius);
+            var target = FacingTarget(engageRadius);
             if (target != null) motor.FaceTowards(target.transform.position);
         }
 
-        void ReleaseRock()
+        void Release(Hand hand)
         {
             float charge = RockCharge;
             EndChant();
@@ -256,9 +315,12 @@ namespace HunterAwakening
                 return;
             }
             rockCharge = charge;
-            Begin(rockAttack, rock: true);
+            currentHand = hand;
+            Begin(hand == Hand.Paper ? paperAttack : hand == Hand.Scissors ? scissorsAttack : rockAttack, rock: true);
             if (!IsAttacking) return; // no stamina left to throw it
-            GameSession.Instance.PushNotice(charge >= 1f ? "GUU!!" : "Guu!", 1.5f);
+            bool full = charge >= 1f;
+            string word = hand == Hand.Paper ? "PAA" : hand == Hand.Scissors ? "CHII" : "GUU";
+            GameSession.Instance.PushNotice(full ? word + "!!" : word[0] + word.Substring(1).ToLowerInvariant() + "!", 1.5f);
             ImpactEffects.RockThrow(charge);
             RockReleased?.Invoke(charge);
         }
@@ -277,15 +339,22 @@ namespace HunterAwakening
             aura.HatsuCharge = 0f;
         }
 
-        void Begin(AttackSpec spec, bool ko = false, bool rock = false)
+        void Begin(AttackSpec spec, bool ko = false, bool rock = false, bool chained = false)
         {
             if (!vitals.TrySpend(spec.staminaCost))
             {
                 GameSession.Instance.PushNotice("Not enough stamina to attack.", 1.5f);
                 return;
             }
-            var target = NearestEnemy(engageRadius);
+            var target = FacingTarget(engageRadius);
             if (target != null) motor.FaceTowards(target.transform.position);
+            if (!chained)
+            {
+                comboStep = 0;
+                comboFinisher = false;
+                bufferedAt = float.NegativeInfinity;
+            }
+            lastConnected = false;
 
             current = spec;
             currentIsKo = ko;
@@ -293,7 +362,7 @@ namespace HunterAwakening
             CurrentPhase = Phase.Startup;
             float performance = P.Fatigue.PerformanceMultiplier * aura.AttackSpeedMultiplier;
             // Gathering everything into the fist takes Ko a moment; Rock gathered it during the chant.
-            StartupDuration = spec.startup / performance * (ko ? 1.3f : 1f);
+            StartupDuration = spec.startup / performance * (ko ? 1.3f : 1f) * (chained ? 0.75f : 1f); // follow-ups come out faster
             // Mastery shortens recovery; fatigue lengthens it.
             float masteryCut = Mathf.Lerp(1f, 0.6f, Mathf.Clamp01(P.GetMastery(spec.technique) / 100f));
             recoveryDuration = spec.recovery * masteryCut / performance;
@@ -326,7 +395,14 @@ namespace HunterAwakening
 
         void ResolveHit()
         {
-            var target = TargetInArc(current.range, 60f, out float distance);
+            if (currentIsRock && currentHand == Hand.Paper)
+            {
+                LaunchPaper();
+                return;
+            }
+            bool scissors = currentIsRock && currentHand == Hand.Scissors;
+            if (scissors) BladeSwept?.Invoke(rockCharge);
+            var target = TargetInArc(current.range, scissors ? 80f : 60f, out float distance);
             if (target == null)
             {
                 if (NearestEnemy(engageRadius) != null) Tracker?.RegisterWhiff();
@@ -338,7 +414,9 @@ namespace HunterAwakening
             bool punish = target.IsVulnerable;
             float quality = Mathf.Clamp01(0.4f + 0.4f * spacing + (punish ? 0.3f : 0f));
 
-            float strength = StatEffects.StrengthDamageFactor(P.GetAttribute(AttributeId.Strength)) * P.StrainPenalty(BodyArea.Upper);
+            double strengthAttr = P.GetAttribute(AttributeId.Strength);
+            float strength = (currentIsKo || currentIsRock ? StatEffects.NenStrikeStrengthFactor(strengthAttr) : StatEffects.StrengthDamageFactor(strengthAttr))
+                             * P.StrainPenalty(BodyArea.Upper);
             float technique = 1f + 0.35f * Mathf.Clamp01(P.GetMastery(current.technique) / 100f);
             float execution = Mathf.Lerp(0.85f, 1.1f, quality);
             float nen = aura.OutgoingMultiplier;
@@ -347,7 +425,9 @@ namespace HunterAwakening
             float damage = current.baseDamage * strength * technique * execution * nen * Mathf.Lerp(0.8f, 1f, P.Fatigue.Readiness)
                            * (ambush ? (P.HasBreakthrough(Breakthroughs.ShadowStrike) ? 2f : StatEffects.ZetsuAmbushDamageMultiplier) : 1f)
                            * (currentIsKo ? StatEffects.KoDamageMultiplier(maxOutput) : 1f)
-                           * (currentIsRock ? StatEffects.JajankenDamageMultiplier(rockCharge, maxOutput, P.GetMastery(TechniqueId.Jajanken)) : 1f);
+                           * (currentIsRock ? StatEffects.JajankenDamageMultiplier(rockCharge, maxOutput, P.GetMastery(TechniqueId.Jajanken))
+                                              * (scissors ? StatEffects.JajankenScissorsFactor : 1f) : 1f)
+                           * StatEffects.ComboDamageMultiplier(comboStep, comboFinisher);
 
             var hit = new HitInfo { damage = damage, technique = current.technique, heavy = current.heavy, ren = aura.RenActive || currentIsKo || currentIsRock, ambush = ambush };
             if (ambush)
@@ -369,11 +449,15 @@ namespace HunterAwakening
             }
             if (currentIsRock)
             {
-                hit.renStagger = Mathf.Max(hit.renStagger, StatEffects.KoStagger * (0.6f + 0.5f * rockCharge));
-                hit.knockback *= 1f + 1.5f * rockCharge;
+                hit.renStagger = Mathf.Max(hit.renStagger, StatEffects.KoStagger * (0.6f + 0.5f * rockCharge) * (scissors ? 0.7f : 1f));
+                hit.knockback *= scissors ? 1f + 0.5f * rockCharge : 1f + 1.5f * rockCharge;
             }
+            if (comboFinisher) hit.renStagger = Mathf.Max(hit.renStagger * 1.4f, 0.5f);
             var result = target.ReceiveHit(hit, out float dealt);
             if (result == HitResult.Guarded) quality *= 0.3f;
+            lastConnected = result != HitResult.Guarded;
+            if (comboStep > 0 && lastConnected)
+                DamageNumbers.Callout(target.transform.position + Vector3.up * 2.2f, comboFinisher ? $"{comboStep + 1} HIT FINISHER" : $"{comboStep + 1} HIT");
 
             P.ApplyMastery(current.technique, quality);
             if (aura.RenActive && result != HitResult.Guarded) P.ApplyMastery(TechniqueId.Ren, 0.7f);
@@ -392,7 +476,8 @@ namespace HunterAwakening
                 bool full = rockCharge >= 1f;
                 HitFeedback.Impact(0.1f + 0.1f * rockCharge, 0.5f + 0.6f * rockCharge);
                 if (full) HitFeedback.SlowMotion(0.3f, 0.45f);
-                GameSession.Instance.PushNotice(full ? $"ROCK! {dealt:0} damage — the full chant." : $"Rock! {dealt:0} damage.", 2f);
+                string hand = scissors ? "SCISSORS" : "ROCK";
+                GameSession.Instance.PushNotice(full ? $"{hand}! {dealt:0} damage — the full chant." : $"{hand}! {dealt:0} damage.", 2f);
                 ImpactEffects.Ko(impactPoint);
                 return;
             }
@@ -518,6 +603,61 @@ namespace HunterAwakening
             if (blocked) ImpactEffects.Blocked(transform.position + transform.forward * 0.4f + Vector3.up * 0.5f);
             else ImpactEffects.PlayerHurt(transform.position + Vector3.up * 0.5f);
         }
+
+        /// <summary>Paper: the gathered aura leaves the hand as a shot that bursts on the first opponent in its path.</summary>
+        void LaunchPaper()
+        {
+            double maxOutput = P.GetAttribute(AttributeId.MaxOutput);
+            float strength = StatEffects.NenStrikeStrengthFactor(P.GetAttribute(AttributeId.Strength)) * P.StrainPenalty(BodyArea.Upper);
+            float damage = current.baseDamage * strength * aura.OutgoingMultiplier * Mathf.Lerp(0.8f, 1f, P.Fatigue.Readiness)
+                           * StatEffects.JajankenDamageMultiplier(rockCharge, maxOutput, P.GetMastery(TechniqueId.Jajanken))
+                           * StatEffects.JajankenPaperFactor;
+            var hit = new HitInfo
+            {
+                damage = damage, technique = TechniqueId.Jajanken, heavy = true, ren = true,
+                renStagger = StatEffects.KoStagger * (0.4f + 0.4f * rockCharge),
+                knockback = StatEffects.RenKnockback(maxOutput) * (1f + rockCharge)
+            };
+            var animator = GetComponent<PlayerAnimator>();
+            var hand = animator != null && animator.Animator != null && animator.Animator.isHuman
+                ? animator.Animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
+            Vector3 origin = hand != null ? hand.position : transform.position + transform.forward * 0.6f + Vector3.up * 1.1f;
+            AuraShot.Launch(this, origin, transform.forward, hit, rockCharge, current.range);
+        }
+
+        /// <summary>Called by a Paper shot when it reaches an opponent (or falls short, with no target).</summary>
+        public void OnPaperLanded(EnemyController target, HitInfo hit, float charge, Vector3 point)
+        {
+            if (target == null)
+            {
+                Tracker?.RegisterWhiff();
+                return;
+            }
+            var result = target.ReceiveHit(hit, out float dealt);
+            DamageNumbers.Show(target.transform.position + Vector3.up * 1.5f, dealt, DamageNumbers.Kind.Finisher);
+            P.ApplyMastery(TechniqueId.Jajanken, charge * 0.8f);
+            Tracker?.RegisterPlayerHit(result, dealt, true, true, target.IsVulnerable, false);
+            HitFeedback.Impact(0.08f + 0.08f * charge, 0.4f + 0.4f * charge);
+            ImpactEffects.Ko(point);
+            GameSession.Instance.PushNotice(charge >= 1f ? $"PAPER! {dealt:0} damage — the full chant." : $"PAPER! {dealt:0} damage.", 2f);
+        }
+
+        void TickLockOn(bool blocked)
+        {
+            if (LockTarget != null && (!LockTarget.IsActive || FlatDistance(LockTarget.transform.position) > lockOnRange * 1.4f))
+                LockTarget = null;
+            if (blocked || !input.LockOnPressed) return;
+            if (LockTarget != null)
+            {
+                LockTarget = null;
+                return;
+            }
+            LockTarget = NearestEnemy(lockOnRange);
+            if (LockTarget == null) GameSession.Instance.PushNotice("No opponent close enough to lock on.", 1.5f);
+        }
+
+        /// <summary>Who an attack turns to face: the locked target, else the nearest opponent in range.</summary>
+        EnemyController FacingTarget(float radius) => LockTarget != null ? LockTarget : NearestEnemy(radius);
 
         EnemyController NearestEnemy(float radius)
         {

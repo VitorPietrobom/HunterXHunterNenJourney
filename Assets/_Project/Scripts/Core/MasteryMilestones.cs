@@ -20,6 +20,8 @@ namespace HunterAwakening
         public const float KenCheap = 30f;
         public const float KoCheap = 30f;
         public const float JajankenSteady = 30f;
+        public const float JajankenPaper = 25f;
+        public const float JajankenScissors = 50f;
 
         // Unlock thresholds for the advanced applications (checked by AuraController).
         public const float KenUnlockTenMastery = 25f;
@@ -49,7 +51,12 @@ namespace HunterAwakening
             { TechniqueId.Gyo, new[] { new Milestone(GyoCheap, "Gyo drains a third less aura") } },
             { TechniqueId.Ken, new[] { new Milestone(KenCheap, "Ken drains 25% less aura") } },
             { TechniqueId.Ko, new[] { new Milestone(KoCheap, "Ko costs 25% of your reserve instead of 35%") } },
-            { TechniqueId.Jajanken, new[] { new Milestone(JajankenSteady, "A hit mid-chant only halves the charge instead of scattering it") } },
+            { TechniqueId.Jajanken, new[]
+            {
+                new Milestone(JajankenPaper, "Paper: right-click during the chant to throw the aura as a shot"),
+                new Milestone(JajankenSteady, "A hit mid-chant only halves the charge instead of scattering it"),
+                new Milestone(JajankenScissors, "Scissors: left-click during the chant for an aura blade"),
+            } },
         };
 
         public static IReadOnlyList<Milestone> For(TechniqueId id) =>

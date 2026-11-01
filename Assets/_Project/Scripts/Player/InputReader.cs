@@ -9,7 +9,7 @@ namespace HunterAwakening
     public class InputReader : MonoBehaviour
     {
         InputAction move, look, sprint, jump, dodge, light, heavy, block, interact,
-            ten, ren, zetsu, gyo, ko, hatsu, pause, dashboard, previous, next, drillPrimary, save, load, help;
+            ten, ren, zetsu, gyo, ko, hatsu, lockOn, pause, dashboard, previous, next, drillPrimary, save, load, help;
         InputAction[] all;
 
         public Vector2 Move => move.ReadValue<Vector2>();
@@ -29,6 +29,7 @@ namespace HunterAwakening
         public bool KoPressed => ko.WasPressedThisFrame();
         public bool HatsuPressed => hatsu.WasPressedThisFrame();
         public bool HatsuHeld => hatsu.IsPressed();
+        public bool LockOnPressed => lockOn.WasPressedThisFrame();
         public bool PausePressed => pause.WasPressedThisFrame();
         public bool DashboardPressed => dashboard.WasPressedThisFrame();
         public bool PreviousPressed => previous.WasPressedThisFrame();
@@ -64,6 +65,7 @@ namespace HunterAwakening
             gyo = Button("Gyo", "<Keyboard>/g", "<Gamepad>/leftTrigger");
             ko = Button("Ko", "<Keyboard>/f", "<Gamepad>/rightShoulder");
             hatsu = Button("Hatsu", "<Keyboard>/v", "<Gamepad>/leftStickPress");
+            lockOn = Button("LockOn", "<Mouse>/middleButton", "<Keyboard>/x");
             pause = Button("Pause", "<Keyboard>/escape", "<Gamepad>/start");
             dashboard = Button("Dashboard", "<Keyboard>/tab", "<Gamepad>/select");
             previous = Button("Previous", "<Keyboard>/leftBracket", "<Keyboard>/minus", "<Gamepad>/dpad/down");
@@ -73,7 +75,7 @@ namespace HunterAwakening
             load = Button("Load", "<Keyboard>/f9");
             help = Button("Help", "<Keyboard>/f1");
 
-            all = new[] { move, look, sprint, jump, dodge, light, heavy, block, interact, ten, ren, zetsu, gyo, ko, hatsu, pause,
+            all = new[] { move, look, sprint, jump, dodge, light, heavy, block, interact, ten, ren, zetsu, gyo, ko, hatsu, lockOn, pause,
                           dashboard, previous, next, drillPrimary, save, load, help };
         }
 

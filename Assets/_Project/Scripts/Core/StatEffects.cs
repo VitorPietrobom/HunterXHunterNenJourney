@@ -21,6 +21,11 @@ namespace HunterAwakening
         public static float SprintStaminaCost(double endurance) => 22f / (1f + 0.3f * G(endurance));
         public static float JumpHeight(double mobility) => Mathf.Min(1.1f * (1f + 0.5f * G(mobility)), 8f);
         public static float StrengthDamageFactor(double strength) => 1f + 0.9f * G(strength);
+        /// <summary>
+        /// Ko and Jajanken are aura strikes: their power comes from Nen, so the body adds only half its strength bonus
+        /// (otherwise a lifter's ×3 strength multiplies a ×5 Hatsu and one-shots every opponent).
+        /// </summary>
+        public static float NenStrikeStrengthFactor(double strength) => 1f + 0.5f * (StrengthDamageFactor(strength) - 1f);
         public static float OneRepMaxKg(double strength) => 50f * (1f + 1.2f * G(strength));
         public static float MaxHealth(double durability, double endurance) => 100f * (1f + 0.6f * G(durability) + 0.25f * G(endurance));
         public static float DamageReduction(double durability) { float g = G(durability); return g / (g + 3f); }
@@ -97,6 +102,12 @@ namespace HunterAwakening
         public const float JajankenMinCharge = 0.34f;
         public const float JajankenChantDamageTakenMultiplier = 1.35f;
         public const float JajankenFullChantBonus = 1.25f;
+        /// <summary>Paper trades power for range; Scissors sits between Paper and Rock.</summary>
+        public const float JajankenPaperFactor = 0.6f;
+        public const float JajankenScissorsFactor = 0.75f;
+
+        // Combos: each follow-up in a light-light-heavy chain hits harder; the heavy finisher hits hardest.
+        public static float ComboDamageMultiplier(int step, bool finisher) => finisher ? 1.35f : 1f + 0.15f * Mathf.Clamp(step, 0, 2);
 
         public static float JajankenDamageMultiplier(float charge, double maxOutput, float mastery)
         {

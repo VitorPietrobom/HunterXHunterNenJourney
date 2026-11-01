@@ -77,6 +77,7 @@ namespace HunterAwakening
         {
             lastPosition = transform.position;
             player.Combat.HitTaken += OnHitTaken;
+            player.Combat.AttackStarted += OnAttackStarted;
             player.Motor.Jumped += OnJumped;
             player.Motor.Dodged += OnDodged;
         }
@@ -85,6 +86,7 @@ namespace HunterAwakening
         {
             if (player == null || player.Combat == null) return;
             player.Combat.HitTaken -= OnHitTaken;
+            player.Combat.AttackStarted -= OnAttackStarted;
             player.Motor.Jumped -= OnJumped;
             player.Motor.Dodged -= OnDodged;
         }
@@ -95,6 +97,14 @@ namespace HunterAwakening
             repDuration = Mathf.Max(0.1f, duration);
             repTimer = repDuration;
             Enter(State.Squat, 0f, true);
+        }
+
+        // A chained follow-up replays its punch from the start (the same clip would otherwise just keep running).
+        // Jajanken releases continue from the cocked fist instead.
+        void OnAttackStarted(PlayerCombat.AttackSpec spec)
+        {
+            if (spec.technique == TechniqueId.Jajanken) return;
+            Enter(spec.heavy ? State.PunchHeavy : State.PunchLight, 0f, true);
         }
 
         void OnHitTaken() => hitTimer = Length(State.HitReact) * 0.8f;

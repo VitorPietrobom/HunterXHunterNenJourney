@@ -98,6 +98,24 @@ namespace HunterAwakening.Tests
         }
 
         [Test]
+        public void Jajanken_HandsAndCombosScale()
+        {
+            Assert.Less(StatEffects.JajankenPaperFactor, StatEffects.JajankenScissorsFactor, "Paper trades power for range");
+            Assert.Less(StatEffects.JajankenScissorsFactor, 1f, "Rock is the strongest hand");
+            Assert.Greater(StatEffects.ComboDamageMultiplier(1, false), StatEffects.ComboDamageMultiplier(0, false));
+            Assert.Greater(StatEffects.ComboDamageMultiplier(2, true), StatEffects.ComboDamageMultiplier(2, false), "the finisher hits hardest");
+            Assert.Less(MasteryMilestones.JajankenPaper, MasteryMilestones.JajankenScissors);
+        }
+
+        [Test]
+        public void NenStrikes_LeanOnAuraMoreThanMuscle()
+        {
+            Assert.AreEqual(1f, StatEffects.NenStrikeStrengthFactor(10), 1e-4f, "no bonus at baseline strength");
+            Assert.Less(StatEffects.NenStrikeStrengthFactor(90), StatEffects.StrengthDamageFactor(90));
+            Assert.Greater(StatEffects.NenStrikeStrengthFactor(90), 1f, "strength still helps");
+        }
+
+        [Test]
         public void Jajanken_PowerGrowsWithTheChantAndMastery()
         {
             Assert.Less(StatEffects.JajankenChargeTime(100f), StatEffects.JajankenChargeTime(0f), "mastery shortens the chant");

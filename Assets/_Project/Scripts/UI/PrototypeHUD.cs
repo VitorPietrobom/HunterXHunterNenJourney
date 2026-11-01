@@ -183,6 +183,10 @@ namespace HunterAwakening
             string stage = charge >= 1f ? "GUU — release!" : charge >= 2f / 3f ? "Ken…" : charge >= StatEffects.JajankenMinCharge ? "Jan…" : "Saisho wa guu!";
             HudGui.Panel(new Rect(r.x - 6f, r.y - 6f, w + 12f, h + 12f));
             HudGui.Bar(r, charge, charge >= 1f ? new Color(1f, 0.85f, 0.3f) : new Color(1f, 0.55f, 0.15f), $"Jajanken — {stage}");
+            string hands = "<color=#ffc552><b>Release V</b></color> Rock";
+            if (c.PaperUnlocked) hands += "   <color=#ffc552><b>RMB</b></color> Paper";
+            if (c.ScissorsUnlocked) hands += "   <color=#ffc552><b>LMB</b></color> Scissors";
+            HudGui.ShadowLabel(new Rect(r.x - 60f, r.yMax + 8f, w + 120f, 20f), $"<size=12>{hands}</size>", HudGui.Center);
         }
 
         void DrawWorldLabels()
@@ -206,6 +210,7 @@ namespace HunterAwakening
                         : $"<color=#ccddff>next attack ≥ {e.AttackCooldownRemaining:0.0}s</color>";
                     state = state == null ? read : state + "  " + read;
                 }
+                if (player.Combat.LockTarget == e) state = state == null ? "<color=#ffc552><b>◆ LOCKED ◆</b></color>" : "<color=#ffc552><b>◆</b></color> " + state;
                 DrawLabel(e.transform.position + Vector3.up * 1.6f, e.DisplayName, e.IsActive ? e.Health : null, state);
             }
             if (player.Aura.ZetsuActive)
@@ -265,7 +270,8 @@ namespace HunterAwakening
                 "LMB light · RMB heavy · Q block (tap just before a hit to parry)\n" +
                 "E interact · [ / ] drill intensity · Space/LMB drill action\n" +
                 "T Ten · hold R Ren · Z Zetsu · hold G Gyo · Ten+Ren Ken\n" +
-                "F Ko · hold V Jajanken: Rock (once learned)\n" +
+                "F Ko · hold V Jajanken (release Rock · RMB Paper · LMB Scissors)\n" +
+                "Middle mouse / X lock on · light, light, heavy combo\n" +
                 "Tab dashboard · Esc pause/settings · F5 save · F9 reload · F1 hide";
             const float w = 460f;
             // Sized to the text, so a new line of controls never spills out of the panel.
