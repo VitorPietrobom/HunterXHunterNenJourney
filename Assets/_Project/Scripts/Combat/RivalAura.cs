@@ -44,7 +44,8 @@ namespace HunterAwakening
                 "rookie" => new Color(0.75f, 0.88f, 1f),  // Killua: pale, crackling white-blue
                 "rival" => new Color(0.4f, 0.6f, 1f),     // Kurapika: cool blue
                 "veteran" => new Color(1f, 0.35f, 0.75f), // Hisoka: pink-violet
-                "elite" => new Color(0.55f, 0.2f, 0.95f), // Meruem: deep violet
+                "elite" => new Color(0.55f, 0.85f, 1f),   // Killua in Godspeed: electric blue
+                "king" => new Color(0.55f, 0.2f, 0.95f),  // Meruem: deep violet
                 _ => defaultColor,
             };
             presence = Mathf.Clamp(1f + (tier.presence - 10f) / 15f, 1f, 3f);

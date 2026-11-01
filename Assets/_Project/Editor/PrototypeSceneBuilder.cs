@@ -10,7 +10,7 @@ namespace HunterAwakening.EditorTools
     /// Generates the training sandbox (placeholder primitives), its data assets and materials.
     /// Re-running it rebuilds the scene and updates existing assets in place.
     /// </summary>
-    public static class PrototypeSceneBuilder
+    public static partial class PrototypeSceneBuilder
     {
         const string Root = "Assets/_Project";
         const string DataDir = Root + "/Data";
@@ -173,6 +173,9 @@ namespace HunterAwakening.EditorTools
             BuildAuraArea(m, tenDef, renDef);
             BuildGyoStones(m, gyoStonesDef);
             BuildArena(m, context, sparringDef, gyoDef);
+            // Where a beaten player wakes up: beside the rest bench.
+            var respawn = Empty("RespawnPoint", null, new Vector3(0f, 1f, 4.5f), 180f);
+            BuildWorld(m, sparringDef, gyoDef, respawn.transform);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AddToBuildSettings(ScenePath);

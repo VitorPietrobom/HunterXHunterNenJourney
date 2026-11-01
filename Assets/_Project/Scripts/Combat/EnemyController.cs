@@ -72,6 +72,8 @@ namespace HunterAwakening
         public Health Health => health;
         public float Radius => radius;
         public bool IsActive => state != State.Inactive && state != State.Defeated;
+        /// <summary>Fighting, or a field opponent waiting at its post that a strike would provoke.</summary>
+        public bool IsTargetable => IsActive || (state == State.Inactive && Provoked != null && gameObject.activeInHierarchy);
         public bool IsTelegraphing => state == State.Telegraph;
         public bool IsVulnerable => state == State.Recovery || state == State.Stagger;
         public bool IsGuarding => state == State.Guard;
@@ -98,6 +100,8 @@ namespace HunterAwakening
         public event Action Staggered;
         public event Action AttackLaunched;
         public event Action PatternRead;
+        /// <summary>Struck while waiting at its post (field encounters engage the whole group).</summary>
+        public event Action Provoked;
 
         void Awake()
         {
@@ -134,29 +138,40 @@ namespace HunterAwakening
             baseGuardChance = tier.baseGuardChance;
             damageReduction = tier.damageReduction;
             presence = tier.presence;
+            attackRange = tier.attackRange;
             if (TryGetComponent(out RivalModels models)) models.Show(tier.id);
             if (TryGetComponent(out RivalAura aura)) aura.SetTier(tier);
             health.SetMax(maxHealth, false);
             health.RestoreFull();
         }
 
+        /// <summary>Starts a fresh fight from the spawn point with full health (arena matches).</summary>
         public void Activate(PlayerCombat target)
         {
+            Engage(target);
+            controller.enabled = false;
+            transform.SetPositionAndRotation(spawnPosition, spawnRotation);
+            controller.enabled = true;
+            health.RestoreFull();
+        }
+
+        /// <summary>Turns on the player from wherever this opponent stands (field encounters).</summary>
+        public void Engage(PlayerCombat target)
+        {
+            if (IsDefeated) return;
             Deactivate();
             player = target;
             playerAura = player.GetComponent<AuraController>();
             intimidationAnnounced = false;
             LostTrack = Intimidated = false;
             player.AttackStarted += OnPlayerAttackStarted;
-            controller.enabled = false;
-            transform.SetPositionAndRotation(spawnPosition, spawnRotation);
-            controller.enabled = true;
-            health.RestoreFull();
             recentPlayerAttacks.Clear();
             knockback = Vector3.zero;
-            cooldown = 1.2f;
+            cooldown = 1.2f + UnityEngine.Random.Range(0f, 0.8f);
             Enter(State.Chase, 0f);
         }
+
+        public Vector3 SpawnPosition => spawnPosition;
 
         public void Deactivate()
         {
@@ -207,6 +222,7 @@ namespace HunterAwakening
         public HitResult ReceiveHit(HitInfo hit, out float dealt)
         {
             dealt = 0f;
+            if (state == State.Inactive) Provoked?.Invoke();
             if (!IsActive) return HitResult.None;
             float damage = hit.damage * (1f - damageReduction);
             var result = HitResult.Landed;
@@ -321,13 +337,38 @@ namespace HunterAwakening
             cooldown -= dt * (Intimidated ? 0.4f : 1f) * (player.IsChargingRock ? 1.8f : 1f);
 
             FaceTowards(player.transform.position, 540f * dt);
-            if (distance > attackRange * 0.85f)
-                controller.Move(to.normalized * (moveSpeed * dt));
-            if (distance <= attackRange && cooldown <= 0f && !player.IsDefeated)
+            Vector3 move = distance > attackRange * 0.85f ? to.normalized * moveSpeed : Vector3.zero;
+            move += Separation() * moveSpeed;
+            if (move.sqrMagnitude > 0.0001f) controller.Move(move * dt);
+            // In a group, one wind-up at a time: the others circle and wait their turn.
+            if (distance <= attackRange && cooldown <= 0f && !player.IsDefeated && !OtherIsWindingUp())
             {
                 Enter(State.Telegraph, telegraphTime);
                 TelegraphStarted?.Invoke();
             }
+        }
+
+        bool OtherIsWindingUp()
+        {
+            foreach (var e in All)
+                if (e != this && e.player == player && e.state == State.Telegraph) return true;
+            return false;
+        }
+
+        /// <summary>A push away from nearby allies so a group spreads around the player instead of stacking.</summary>
+        Vector3 Separation()
+        {
+            Vector3 push = Vector3.zero;
+            foreach (var e in All)
+            {
+                if (e == this || !e.IsActive) continue;
+                Vector3 away = transform.position - e.transform.position;
+                away.y = 0f;
+                float gap = radius + e.radius + 0.6f;
+                float d = away.magnitude;
+                if (d < gap && d > 0.001f) push += away / d * (1f - d / gap);
+            }
+            return Vector3.ClampMagnitude(push, 0.8f);
         }
 
         void ResolveAttack()

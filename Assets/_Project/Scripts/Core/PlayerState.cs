@@ -48,6 +48,8 @@ namespace HunterAwakening
         public List<ExerciseRecord> records = new List<ExerciseRecord>();
         public List<HistoryEntry> history = new List<HistoryEntry>();
         public List<string> knowledge = new List<string>();
+        /// <summary>Field encounters (ant squads, the King) beaten for good.</summary>
+        public List<string> clearedEncounters = new List<string>();
         public int trainingSessions;
         public double activePlaySeconds;
         public bool hasPosition;
@@ -100,6 +102,7 @@ namespace HunterAwakening
             records ??= new List<ExerciseRecord>();
             history ??= new List<HistoryEntry>();
             knowledge ??= new List<string>();
+            clearedEncounters ??= new List<string>();
 
             attributes.RemoveAll(a => a == null || !Enum.IsDefined(typeof(AttributeId), a.id));
             mastery.RemoveAll(m => m == null || !Enum.IsDefined(typeof(TechniqueId), m.id));

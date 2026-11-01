@@ -75,8 +75,8 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 
 - [x] ⚠️ **Animate the rival**: Killua model and clips (run, heavy punch timed to the telegraph, block, hit reaction, knockdown), coloured cue light, and a crimson "shadow" colour scheme so it reads as a different fighter. *Check fps with two 100k-vertex hair meshes.*
 - [x] ⚠️ **Gon is the player** (`PlayerCharacter` in the scene builder; the original Killua model remains as a fallback and the hidden default rival).
-- [x] ⚠️ **A fighter per tier**: Rookie = Killua, Sparring Rival = Kurapika, Veteran Hunter = Hisoka, Elite Nen User = Meruem (`RivalModels` swaps the model with the tier). Rigged in Blender by an auto-rigger (Mixamo bone names, heat weights, T-pose bind) — *weights are automatic: check deformation in motion (Hisoka's hair, Kurapika's tabard, Meruem's armpits).* Re-run with the Blender scripts in `Art/Characters/Rivals/` (`prepare_characters.py.txt` cleans and scales the downloads, `autorig.py.txt` rigs them).
-- [ ] ◻️ Bloster and the Koala chimera ant (AI-generated, ~250k verts, non-humanoid / posed): decimate and give them their own rigs to use as monster opponents.
+- [x] ⚠️ **A fighter per tier**: Rookie = Killua, Sparring Rival = Kurapika, Veteran Hunter = Hisoka, Elite = Killua (Godspeed), a friendly sparring partner with an electric-blue aura (`RivalModels` swaps the model with the tier). Rigged in Blender by an auto-rigger (Mixamo bone names, heat weights, T-pose bind) — *weights are automatic: check deformation in motion (Hisoka's hair, Kurapika's tabard, Meruem's armpits).* Re-run with the Blender scripts in `Art/Characters/Rivals/` (`prepare_characters.py.txt` cleans and scales the downloads, `autorig.py.txt` rigs them).
+- [x] ⚠️ **Chimera ants**: Bloster (soldier) and the Koala ant (grunt), decimated from ~500k to 24k/16k faces by `Art/Characters/Ants/prepare_ants.py.txt` and animated procedurally (`CreatureAnimator`: stalking bob, rearing wind-up, lunge, shudder, topple-and-sink) since the sculpts are posed and unrigged. *A real rig would let them walk properly.*
 - [x] ⚠️ **Opponent tiers** at the arena post ([ / ]): Rookie, Sparring Rival, Veteran Hunter, Elite Nen User — fixed stats, best time recorded per tier.
 - [x] ⚠️ **Sparring is training**: each match submits a Sparring exercise (Durability, Coordination, Endurance; quality from offense/defense; fights under ~12 s give nothing) and, if Gyo was used, Gyo Reading (Perception).
 - [ ] ⭐ Playtest and tune: attack timings, telegraph length, guard adaptation, rival HP/damage.
@@ -118,6 +118,8 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 - [ ] ◻️ Grass and flower clumps near the stations; a dirt path linking them.
 
 ## World (only after the core loop is proven — GDD §15)
+
+- [x] ⚠️ **A goal: the Chimera Ant campaign.** Four ant squads (a soldier and two grunts) camp in clearings in the woods, each tougher than the last (×1, 1.25, 1.5, 1.8). They wait until you come within 12 m — Zetsu shrinks that, and a strike on an unaware ant opens with an ambush — then all three attack, taking turns to wind up. Run 34 m away and they regroup; fall and you wake at the rest bench. Cleared squads are saved. Clearing all four breaks the King's seal on the **castle to the north**, where **Meruem** (1300 HP) waits on his throne. A HUD objective shows progress and the way to the next fight. *Playtest the difficulty curve against a fresh save.*
 
 - [ ] ◻️ Hunter's Haven hub, then The Frontier, Combat District, Forbidden Zone (GDD §10).
 - [ ] ◻️ Capability-gated routes (e.g. mountain path needs Mobility).

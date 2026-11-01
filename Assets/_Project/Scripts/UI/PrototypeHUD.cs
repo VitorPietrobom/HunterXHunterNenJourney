@@ -50,6 +50,7 @@ namespace HunterAwakening
 
             DrawWorldLabels();
             DrawVitals(session);
+            DrawObjective(session);
             DrawChant();
             DrawPrompt();
             DrawNotices(session);
@@ -63,6 +64,64 @@ namespace HunterAwakening
                 pauseMenu.Draw(session);
             }
             else pauseMenuOpen = false;
+        }
+
+        /// <summary>The goal under the vitals: clear the ant squads, then take the castle, with the way to the next one.</summary>
+        void DrawObjective(GameSession session)
+        {
+            if (Encounter.All.Count == 0) return;
+            Encounter boss = null, nearest = null;
+            float nearestDistance = float.MaxValue;
+            foreach (var e in Encounter.All)
+            {
+                if (e.IsBoss) boss = e;
+                else if (!e.Cleared)
+                {
+                    float d = Vector3.Distance(player.transform.position, e.transform.position);
+                    if (d < nearestDistance)
+                    {
+                        nearestDistance = d;
+                        nearest = e;
+                    }
+                }
+            }
+            int total = Encounter.SquadCount(), left = Encounter.SquadsLeft();
+            string goal, detail;
+            Encounter target;
+            if (left > 0)
+            {
+                goal = $"Clear the chimera ant squads  <color=#ffc552>{total - left}/{total}</color>";
+                detail = "They lurk in the woods. Zetsu lets you sneak up for an ambush.";
+                target = nearest;
+            }
+            else if (boss != null && !boss.Cleared)
+            {
+                goal = "Storm the castle and defeat <color=#b98cff>Meruem</color>";
+                detail = "The seal is broken. The castle lies to the north.";
+                target = boss;
+            }
+            else
+            {
+                goal = "<color=#66dd77>The King has fallen</color>";
+                detail = "Keep training — Killua (Godspeed) waits at the arena.";
+                target = null;
+            }
+            if (target != null && !target.Engaged)
+            {
+                Vector3 to = target.transform.position - player.transform.position;
+                to.y = 0f;
+                string[] names = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
+                float bearing = (Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg + 360f + 22.5f) % 360f;
+                detail += $"  <color=#9aa4b2>({to.magnitude:0} m {names[(int)(bearing / 45f) % 8]})</color>";
+            }
+            const float x = 16f, w = 300f;
+            float y = 16f + (session.Progression.IsAuraAwakened ? 168f : 140f) + 4f;
+            float h = HudGui.Wrap.CalcHeight(new GUIContent(detail), w) + 34f;
+            var r = new Rect(x - 8, y, w + 16, h);
+            HudGui.Panel(r);
+            HudGui.Fill(new Rect(r.x + 1f, r.y + 7f, 3f, r.height - 14f), HudGui.Gold);
+            GUI.Label(new Rect(x + 2, y + 4, w, 22), $"<b>{goal}</b>", HudGui.Label);
+            GUI.Label(new Rect(x + 2, y + 26, w, h - 28), $"<size=12>{detail}</size>", HudGui.Wrap);
         }
 
         void DrawFrameRate()
@@ -198,6 +257,7 @@ namespace HunterAwakening
             bool gyo = player.Aura.GyoActive;
             foreach (var e in EnemyController.All)
             {
+                if (e.IsDefeated) continue;
                 string state = e.IsTelegraphing ? "<color=#ff4433><b>!! ATTACK !!</b></color>"
                     : e.IsGuarding ? "<color=#66aaff>GUARD</color>"
                     : e.IsVulnerable ? "<color=#ffdd55>OPEN</color>"

@@ -644,7 +644,7 @@ namespace HunterAwakening
 
         void TickLockOn(bool blocked)
         {
-            if (LockTarget != null && (!LockTarget.IsActive || FlatDistance(LockTarget.transform.position) > lockOnRange * 1.4f))
+            if (LockTarget != null && (!LockTarget.IsTargetable || FlatDistance(LockTarget.transform.position) > lockOnRange * 1.4f))
                 LockTarget = null;
             if (blocked || !input.LockOnPressed) return;
             if (LockTarget != null)
@@ -665,7 +665,7 @@ namespace HunterAwakening
             float bestDistance = radius;
             foreach (var e in EnemyController.All)
             {
-                if (!e.IsActive) continue;
+                if (!e.IsTargetable) continue;
                 float d = FlatDistance(e.transform.position);
                 if (d < bestDistance)
                 {
@@ -683,7 +683,7 @@ namespace HunterAwakening
             float bestDistance = float.MaxValue;
             foreach (var e in EnemyController.All)
             {
-                if (!e.IsActive) continue;
+                if (!e.IsTargetable) continue;
                 float d = FlatDistance(e.transform.position);
                 if (d > range + e.Radius) continue;
                 Vector3 to = e.transform.position - transform.position;

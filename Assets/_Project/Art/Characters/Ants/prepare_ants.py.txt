@@ -1,0 +1,77 @@
+"""Headless Blender: turn the downloaded chimera ant sculpts into light, game-ready FBX files.
+
+The sources are single AI-generated meshes (~500k faces, posed, no rig). Each is decimated, turned to face -Y
+(Unity forward), scaled to its height, stood on the origin, and exported with its textures embedded. The ants are
+animated procedurally in Unity (CreatureAnimator), so no rig is needed.
+
+Usage: blender -b --factory-startup --disable-autoexec --python prepare_ants.py.txt -- OUT_DIR
+"""
+import math
+import sys
+
+import bpy
+import mathutils
+
+out_dir = sys.argv[sys.argv.index("--") + 1]
+ROOT = "M:/HxHAssets/Models/"
+
+# name: (source, height in metres, target face count)
+ANTS = {
+    "Bloster": ("hxh-bloster/source/tripo_pbr_model_37c60301-58e5-47f8-8c84-0ed2119857df.glb", 2.6, 24000),
+    "Koala": ("hxh-koala-chimera-ant/source/tripo_pbr_model_6a2fe4d0-e7a3-4194-a14c-a24004d42c3c.glb", 1.7, 16000),
+}
+
+for name, (src, height, faces) in ANTS.items():
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    bpy.ops.import_scene.gltf(filepath=ROOT + src)
+    meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
+    bpy.ops.object.select_all(action="DESELECT")
+    for o in meshes:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = meshes[0]
+    if len(meshes) > 1:
+        bpy.ops.object.join()
+    obj = bpy.context.view_layer.objects.active
+    obj.name = name
+    # Bake the import transform (glTF Y-up conversion) into the mesh, unparented.
+    bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    for o in list(bpy.context.scene.objects):
+        if o != obj:
+            bpy.data.objects.remove(o, do_unlink=True)
+
+    # The glTF's textures are packed; write the base colour beside the model (the Unity setup builds the material).
+    for mat in obj.data.materials:
+        for link in mat.node_tree.links if mat and mat.use_nodes else []:
+            if link.from_node.type == "TEX_IMAGE" and link.to_socket.name == "Base Color":
+                image = link.from_node.image
+                image.filepath_raw = f"{out_dir}/{name}/{name}_BaseColor.png"
+                image.file_format = "PNG"
+                image.save()
+                print(f"ANT {name}: base colour {image.size[0]}x{image.size[1]}")
+
+    current = len(obj.data.polygons)
+    mod = obj.modifiers.new("Decimate", "DECIMATE")
+    mod.ratio = min(1.0, faces / current)
+    bpy.ops.object.modifier_apply(modifier=mod.name)
+
+    # The sculpts face +X; turn them to face -Y.
+    obj.rotation_euler = (0.0, 0.0, -math.pi / 2)
+    bpy.ops.object.transform_apply(rotation=True)
+
+    lo = mathutils.Vector((1e9,) * 3)
+    hi = mathutils.Vector((-1e9,) * 3)
+    for v in obj.data.vertices:
+        lo = mathutils.Vector(map(min, lo, v.co))
+        hi = mathutils.Vector(map(max, hi, v.co))
+    scale = height / (hi.z - lo.z)
+    offset = mathutils.Vector(((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, lo.z))
+    for v in obj.data.vertices:
+        v.co = (v.co - offset) * scale
+    obj.data.update()
+    bpy.ops.object.shade_smooth()
+
+    path = f"{out_dir}/{name}/{name}.fbx"
+    bpy.ops.export_scene.fbx(filepath=path, use_selection=False, apply_scale_options="FBX_SCALE_UNITS",
+                             path_mode="COPY", embed_textures=True, mesh_smooth_type="FACE", add_leaf_bones=False)
+    print(f"ANT {name}: {current} -> {len(obj.data.polygons)} faces, scale {scale:.3f}, saved {path}")

@@ -21,7 +21,7 @@ namespace HunterAwakening.EditorTools
             ("Killua", "rookie", 2f),
             ("Kurapika", "rival", 2.2f),
             ("Hisoka", "veteran", 2.45f),
-            ("Meruem", "elite", 2.75f),
+            ("Killua", "elite", 2f), // Killua in Godspeed; Meruem is the castle's King (PrototypeSceneBuilder.World)
         };
 
         public static string ModelPath(string name) => $"{Dir}/{name}/{name}.fbx";

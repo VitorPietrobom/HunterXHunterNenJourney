@@ -4,7 +4,7 @@ using UnityEngine;
 namespace HunterAwakening
 {
     /// <summary>
-    /// Gives each opponent tier its own fighter (Gon, Kurapika, Hisoka, Meruem). All models share the Humanoid
+    /// Gives each opponent tier its own fighter (Killua, Kurapika, Hisoka, Killua in Godspeed). All models share the Humanoid
     /// controller and clips, so switching only swaps which one is shown and driven. Tiers without a model use the
     /// default one.
     /// </summary>

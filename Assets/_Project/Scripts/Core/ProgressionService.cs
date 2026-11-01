@@ -289,6 +289,13 @@ namespace HunterAwakening
         }
 
         /// <summary>Fastest win against an opponent tier, or 0 if never beaten.</summary>
+        public bool IsEncounterCleared(string id) => state.clearedEncounters.Contains(id);
+
+        public void MarkEncounterCleared(string id)
+        {
+            if (!state.clearedEncounters.Contains(id)) state.clearedEncounters.Add(id);
+        }
+
         public float BestSparringTime(string tierId) => state.Record(SparringRecordId(tierId)).bestMetric;
 
         // The default tier keeps the pre-tier record id so existing saves keep their best time.

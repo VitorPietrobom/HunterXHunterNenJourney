@@ -74,7 +74,7 @@ namespace HunterAwakening
             float best = float.MaxValue;
             foreach (var e in EnemyController.All)
             {
-                if (!e.IsActive) continue;
+                if (!e.IsTargetable) continue;
                 Vector3 center = e.transform.position;
                 center.y = from.y;
                 Vector3 seg = to - from;
