@@ -79,6 +79,7 @@ namespace HunterAwakening
             var p = GameSession.Instance.Progression;
             float maxHealth = StatEffects.MaxHealth(p.GetAttribute(AttributeId.Durability), p.GetAttribute(AttributeId.Endurance));
             if (p.HasBreakthrough(Breakthroughs.IronBody)) maxHealth *= 1.1f;
+            maxHealth *= StatEffects.HunterLevelHealthFactor(p.HunterLevel);
             Health.SetMax(maxHealth, true);
         }
     }

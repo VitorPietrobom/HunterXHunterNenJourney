@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace HunterAwakening
@@ -427,7 +428,8 @@ namespace HunterAwakening
                            * (currentIsKo ? StatEffects.KoDamageMultiplier(maxOutput) : 1f)
                            * (currentIsRock ? StatEffects.JajankenDamageMultiplier(rockCharge, maxOutput, P.GetMastery(TechniqueId.Jajanken))
                                               * (scissors ? StatEffects.JajankenScissorsFactor : 1f) : 1f)
-                           * StatEffects.ComboDamageMultiplier(comboStep, comboFinisher);
+                           * StatEffects.ComboDamageMultiplier(comboStep, comboFinisher)
+                           * StatEffects.HunterLevelDamageFactor(P.HunterLevel);
 
             var hit = new HitInfo { damage = damage, technique = current.technique, heavy = current.heavy, ren = aura.RenActive || currentIsKo || currentIsRock, ambush = ambush };
             if (ambush)
@@ -471,6 +473,10 @@ namespace HunterAwakening
                 : hit.ren ? DamageNumbers.Kind.Ren : DamageNumbers.Kind.Hit);
             if (currentIsRock)
             {
+                // Scissors cuts everything in its sweep; Rock's impact throws a shockwave around the target.
+                if (scissors) CollectInArc(current.range, 80f, target);
+                else CollectNear(target.transform.position, StatEffects.RockShockwaveRadius, target);
+                HitOthers(hit, scissors ? 1f : StatEffects.SplashDamageFactor);
                 P.ApplyMastery(TechniqueId.Jajanken, rockCharge);
                 P.ApplyMastery(TechniqueId.Ren, 0.5f);
                 bool full = rockCharge >= 1f;
@@ -611,7 +617,7 @@ namespace HunterAwakening
             float strength = StatEffects.NenStrikeStrengthFactor(P.GetAttribute(AttributeId.Strength)) * P.StrainPenalty(BodyArea.Upper);
             float damage = current.baseDamage * strength * aura.OutgoingMultiplier * Mathf.Lerp(0.8f, 1f, P.Fatigue.Readiness)
                            * StatEffects.JajankenDamageMultiplier(rockCharge, maxOutput, P.GetMastery(TechniqueId.Jajanken))
-                           * StatEffects.JajankenPaperFactor;
+                           * StatEffects.JajankenPaperFactor * StatEffects.HunterLevelDamageFactor(P.HunterLevel);
             var hit = new HitInfo
             {
                 damage = damage, technique = TechniqueId.Jajanken, heavy = true, ren = true,
@@ -635,11 +641,59 @@ namespace HunterAwakening
             }
             var result = target.ReceiveHit(hit, out float dealt);
             DamageNumbers.Show(target.transform.position + Vector3.up * 1.5f, dealt, DamageNumbers.Kind.Finisher);
+            // The ball bursts: anyone close to the impact is caught too.
+            CollectNear(point, StatEffects.PaperBurstRadius, target);
+            HitOthers(hit, StatEffects.SplashDamageFactor);
             P.ApplyMastery(TechniqueId.Jajanken, charge * 0.8f);
             Tracker?.RegisterPlayerHit(result, dealt, true, true, target.IsVulnerable, false);
             HitFeedback.Impact(0.08f + 0.08f * charge, 0.4f + 0.4f * charge);
             ImpactEffects.Ko(point);
             GameSession.Instance.PushNotice(charge >= 1f ? $"PAPER! {dealt:0} damage — the full chant." : $"PAPER! {dealt:0} damage.", 2f);
+        }
+
+        // ------------------------------------------------------------------ Area hits
+
+        readonly List<EnemyController> splash = new List<EnemyController>();
+
+        void CollectInArc(float range, float halfAngle, EnemyController except)
+        {
+            splash.Clear();
+            foreach (var e in EnemyController.All)
+            {
+                if (e == except || !e.IsTargetable) continue;
+                Vector3 to = e.transform.position - transform.position;
+                to.y = 0f;
+                if (to.magnitude > range + e.Radius || Vector3.Angle(transform.forward, to) > halfAngle) continue;
+                splash.Add(e);
+            }
+        }
+
+        void CollectNear(Vector3 center, float radius, EnemyController except)
+        {
+            splash.Clear();
+            foreach (var e in EnemyController.All)
+            {
+                if (e == except || !e.IsTargetable) continue;
+                Vector3 d = e.transform.position - center;
+                d.y = 0f;
+                if (d.magnitude <= radius + e.Radius) splash.Add(e);
+            }
+        }
+
+        /// <summary>Lands a share of the hit on every opponent gathered by CollectInArc / CollectNear.</summary>
+        void HitOthers(HitInfo hit, float factor)
+        {
+            hit.damage *= factor;
+            hit.ambush = false;
+            foreach (var e in splash)
+            {
+                var result = e.ReceiveHit(hit, out float dealt);
+                Tracker?.RegisterPlayerHit(result, dealt, hit.heavy, hit.ren, false);
+                DamageNumbers.Show(e.transform.position + Vector3.up * 1.5f, dealt,
+                    result == HitResult.Guarded ? DamageNumbers.Kind.Blocked : DamageNumbers.Kind.Finisher);
+            }
+            if (splash.Count > 0) DamageNumbers.Callout(transform.position + Vector3.up * 2.4f, $"×{splash.Count + 1} HIT");
+            splash.Clear();
         }
 
         void TickLockOn(bool blocked)

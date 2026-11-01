@@ -50,6 +50,8 @@ namespace HunterAwakening
         public List<string> knowledge = new List<string>();
         /// <summary>Field encounters (ant squads, the King) beaten for good.</summary>
         public List<string> clearedEncounters = new List<string>();
+        /// <summary>Hunter experience from beating opponents (Hunter Level is derived from it).</summary>
+        public double hunterXp;
         public int trainingSessions;
         public double activePlaySeconds;
         public bool hasPosition;

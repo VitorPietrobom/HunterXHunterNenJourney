@@ -66,7 +66,7 @@ namespace HunterAwakening
             else pauseMenuOpen = false;
         }
 
-        /// <summary>The goal under the vitals: clear the ant squads, then take the castle, with the way to the next one.</summary>
+        /// <summary>The goal under the vitals: clear the ant camps, then take the castle, with the way to the next one.</summary>
         void DrawObjective(GameSession session)
         {
             if (Encounter.All.Count == 0) return;
@@ -90,7 +90,7 @@ namespace HunterAwakening
             Encounter target;
             if (left > 0)
             {
-                goal = $"Clear the chimera ant squads  <color=#ffc552>{total - left}/{total}</color>";
+                goal = $"Clear the chimera ant camps  <color=#ffc552>{total - left}/{total}</color>";
                 detail = "They lurk in the woods. Zetsu lets you sneak up for an ambush.";
                 target = nearest;
             }
@@ -115,7 +115,7 @@ namespace HunterAwakening
                 detail += $"  <color=#9aa4b2>({to.magnitude:0} m {names[(int)(bearing / 45f) % 8]})</color>";
             }
             const float x = 16f, w = 300f;
-            float y = 16f + (session.Progression.IsAuraAwakened ? 168f : 140f) + 4f;
+            float y = panelsBottom + 4f;
             float h = HudGui.Wrap.CalcHeight(new GUIContent(detail), w) + 34f;
             var r = new Rect(x - 8, y, w + 16, h);
             HudGui.Panel(r);
@@ -143,7 +143,7 @@ namespace HunterAwakening
             var a = player.Aura;
             const float x = 16f, w = 300f;
             float y = 16f;
-            float height = p.IsAuraAwakened ? 168f : 140f;
+            float height = (p.IsAuraAwakened ? 168f : 140f) + 18f;
             HudGui.Panel(new Rect(x - 8, y - 8, w + 16, height));
 
             // Name, and chips for whatever the aura is doing right now.
@@ -176,6 +176,11 @@ namespace HunterAwakening
                 HudGui.Bar(new Rect(x, y, w, 16), a.Current / Mathf.Max(1f, a.Capacity), HudGui.AuraCyan, $"<size=11><b>Aura {a.Current:0} / {a.Capacity:0}</b></size>");
                 y += 20f;
             }
+            // Hunter Level: experience from beaten opponents.
+            var (into, needed) = StatEffects.LevelProgress(p.HunterXp);
+            HudGui.Bar(new Rect(x, y, w, 14), (float)(into / needed), HudGui.Gold,
+                $"<size=11><color=#1c1306><b>Hunter Lv {p.HunterLevel}</b>  {into:0} / {needed:0} XP</color></size>");
+            y += 18f;
 
             // Condition: two slim meters side by side.
             float half = (w - 8f) / 2f;
@@ -202,7 +207,10 @@ namespace HunterAwakening
             HudGui.Fill(new Rect(goalRect.x + 1f, goalRect.y + 8f, 3f, goalRect.height - 16f), HudGui.Gold);
             GUI.Label(new Rect(x + 4, goalY + 6, w, 16), "NEXT GOAL", HudGui.Section);
             GUI.Label(new Rect(x + 4, goalY + 22, w - 8, goalH - 24), goal, HudGui.Wrap);
+            panelsBottom = goalRect.yMax;
         }
+
+        float panelsBottom;
 
         static string NextGoal(ProgressionService p)
         {
@@ -222,7 +230,7 @@ namespace HunterAwakening
             if (!p.KnowsInsight(AuraController.JajankenInsight))
                 return $"Learn Jajanken: Ren mastery 50 (Ren {p.GetMastery(TechniqueId.Ren):0}) — keep fighting with Ren up and training at the Ren Circle.";
             if (p.BestSparringTime("elite") <= 0f)
-                return "Defeat the Elite Nen User.";
+                return "Beat Killua (Godspeed), the arena's strongest sparring partner.";
             int left = 0;
             foreach (var b in Breakthroughs.All)
                 if (!p.HasBreakthrough(b.id)) left++;

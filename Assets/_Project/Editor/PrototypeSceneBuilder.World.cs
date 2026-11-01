@@ -37,7 +37,7 @@ namespace HunterAwakening.EditorTools
             {
                 float a = angle * Mathf.Deg2Rad;
                 var center = WorldCenter + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * distance;
-                ClearScenery(center, 10f);
+                ClearScenery(center, 13f);
                 BuildCamp(root.transform, m, mound, id, center, strength, soldier, grunt, sparringDef, gyoDef, respawn);
             }
             BuildCastle(root.transform, m, sparringDef, gyoDef, respawn);
@@ -63,16 +63,16 @@ namespace HunterAwakening.EditorTools
                 spike.transform.localRotation = Quaternion.Euler(Mathf.Sin(t) * 18f, 0f, -Mathf.Cos(t) * 18f);
             }
 
-            // One soldier in front, two grunts at its flanks.
+            // One soldier in front, two grunts posted wide on its flanks: far enough apart to be pulled one at a time.
             var members = new[]
             {
-                Ant(camp.transform, m, "Chimera Ant Soldier", soldier, new Vector3(0f, 0f, 1.2f), 2.6f, 0.75f),
-                Ant(camp.transform, m, "Chimera Ant", grunt, new Vector3(-2.6f, 0f, -0.8f), 1.7f, 0.45f),
-                Ant(camp.transform, m, "Chimera Ant", grunt, new Vector3(2.6f, 0f, -0.8f), 1.7f, 0.45f),
+                Ant(camp.transform, m, "Chimera Ant Soldier", soldier, new Vector3(0f, 0f, 1.5f), 2.6f, 0.75f),
+                Ant(camp.transform, m, "Chimera Ant", grunt, new Vector3(-7f, 0f, -1.5f), 1.7f, 0.45f),
+                Ant(camp.transform, m, "Chimera Ant", grunt, new Vector3(7f, 0f, -1.5f), 1.7f, 0.45f),
             };
             var tiers = new[] { RivalTier.AntSoldier(strength), RivalTier.AntGrunt(strength), RivalTier.AntGrunt(strength) };
             var encounter = camp.AddComponent<Encounter>();
-            encounter.Configure(id, "Chimera Ant squad", false, members, tiers, 12f, 34f, respawn, sparringDef, gyoDef);
+            encounter.Configure(id, "Chimera Ant camp", false, members, tiers, 8f, 30f, 90f, respawn, sparringDef, gyoDef);
         }
 
         /// <summary>A procedurally animated ant (an unrigged sculpt) on a CharacterController host standing on the ground.</summary>
@@ -286,7 +286,7 @@ namespace HunterAwakening.EditorTools
 
             var encounter = host.transform.parent.gameObject.AddComponent<Encounter>();
             encounter.Configure("king", "Meruem, the Chimera Ant King", true, new[] { controller }, new[] { RivalTier.King() },
-                13f, CastleHalf + 7f, respawn, sparringDef, gyoDef);
+                13f, CastleHalf + 7f, 0f, respawn, sparringDef, gyoDef);
         }
 
         static Material BarrierMaterial()

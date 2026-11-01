@@ -3,7 +3,7 @@ using UnityEngine;
 namespace HunterAwakening
 {
     /// <summary>
-    /// The King's castle gate: sealed by a wall of his aura until every chimera ant squad in the woods is beaten.
+    /// The King's castle gate: sealed by a wall of his aura until every chimera ant camp in the woods is beaten.
     /// </summary>
     public class CastleGate : Interactable
     {
@@ -51,12 +51,12 @@ namespace HunterAwakening
             if (open) return "The castle gate stands open. The King waits inside.";
             int total = Encounter.SquadCount();
             int left = Encounter.SquadsLeft();
-            return $"Sealed by the King's aura — clear the chimera ant squads in the woods ({total - left}/{total} cleared).";
+            return $"Sealed by the King's aura — clear the chimera ant camps in the woods ({total - left}/{total} cleared).";
         }
 
         public override void Interact(PlayerContext player)
         {
-            if (!open) Session.PushNotice($"The seal holds. {Encounter.SquadsLeft()} ant squad(s) still guard the woods.", 2.5f);
+            if (!open) Session.PushNotice($"The seal holds. {Encounter.SquadsLeft()} ant camp(s) still guard the woods.", 2.5f);
         }
     }
 }

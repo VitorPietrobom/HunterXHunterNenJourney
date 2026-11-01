@@ -289,6 +289,27 @@ namespace HunterAwakening
         }
 
         /// <summary>Fastest win against an opponent tier, or 0 if never beaten.</summary>
+        // ------------------------------------------------------------------ Hunter Level
+
+        public double HunterXp => state.hunterXp;
+        public int HunterLevel => StatEffects.HunterLevel(state.hunterXp);
+
+        /// <summary>Adds experience from a beaten opponent. Returns the number of levels gained.</summary>
+        public int AddHunterXp(double amount)
+        {
+            if (!(amount > 0)) return 0;
+            int before = HunterLevel;
+            state.hunterXp += amount;
+            int gained = HunterLevel - before;
+            if (gained > 0)
+            {
+                Notice?.Invoke($"Hunter Level {HunterLevel}! Health +{StatEffects.HunterLevelHealthBonus * 100f:0}% and damage +{StatEffects.HunterLevelDamageBonus * 100f:0}% per level.");
+                AddHistory($"Hunter Level {HunterLevel}", $"Reached with {state.hunterXp:0} XP.");
+                StateChanged?.Invoke();
+            }
+            return gained;
+        }
+
         public bool IsEncounterCleared(string id) => state.clearedEncounters.Contains(id);
 
         public void MarkEncounterCleared(string id)

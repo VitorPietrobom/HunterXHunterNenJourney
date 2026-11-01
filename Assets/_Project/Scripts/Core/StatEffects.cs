@@ -27,6 +27,35 @@ namespace HunterAwakening
         /// </summary>
         public static float NenStrikeStrengthFactor(double strength) => 1f + 0.5f * (StrengthDamageFactor(strength) - 1f);
         public static float OneRepMaxKg(double strength) => 50f * (1f + 1.2f * G(strength));
+        // Hunter Level: experience from real fights, on top of what training builds.
+        public const float HunterLevelHealthBonus = 0.03f;
+        public const float HunterLevelDamageBonus = 0.02f;
+        /// <summary>XP needed to go from <paramref name="level"/> to the next one (60, 100, 140, …).</summary>
+        public static double XpToNextLevel(int level) => 20 + 40 * level;
+        public static int HunterLevel(double xp)
+        {
+            int level = 1;
+            while (level < 99 && xp >= XpToNextLevel(level))
+            {
+                xp -= XpToNextLevel(level);
+                level++;
+            }
+            return level;
+        }
+        /// <summary>XP gathered towards the next level, and how much that level needs.</summary>
+        public static (double into, double needed) LevelProgress(double xp)
+        {
+            int level = 1;
+            while (level < 99 && xp >= XpToNextLevel(level))
+            {
+                xp -= XpToNextLevel(level);
+                level++;
+            }
+            return (xp, XpToNextLevel(level));
+        }
+        public static float HunterLevelHealthFactor(int level) => 1f + HunterLevelHealthBonus * (Mathf.Max(1, level) - 1);
+        public static float HunterLevelDamageFactor(int level) => 1f + HunterLevelDamageBonus * (Mathf.Max(1, level) - 1);
+
         public static float MaxHealth(double durability, double endurance) => 100f * (1f + 0.6f * G(durability) + 0.25f * G(endurance));
         public static float DamageReduction(double durability) { float g = G(durability); return g / (g + 3f); }
         public static float ComfortableLaps(double endurance) => 2f * (1f + 0.8f * G(endurance));
@@ -105,6 +134,10 @@ namespace HunterAwakening
         /// <summary>Paper trades power for range; Scissors sits between Paper and Rock.</summary>
         public const float JajankenPaperFactor = 0.6f;
         public const float JajankenScissorsFactor = 0.75f;
+        /// <summary>Rock's shockwave and Paper's burst: share of the hit dealt to others nearby, and their reach.</summary>
+        public const float SplashDamageFactor = 0.5f;
+        public const float RockShockwaveRadius = 3f;
+        public const float PaperBurstRadius = 2.5f;
 
         // Combos: each follow-up in a light-light-heavy chain hits harder; the heavy finisher hits hardest.
         public static float ComboDamageMultiplier(int step, bool finisher) => finisher ? 1.35f : 1f + 0.15f * Mathf.Clamp(step, 0, 2);

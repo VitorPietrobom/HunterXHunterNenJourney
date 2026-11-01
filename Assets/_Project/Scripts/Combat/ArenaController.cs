@@ -144,6 +144,11 @@ namespace HunterAwakening
             else
             {
                 HitFeedback.SlowMotion(0.3f, 0.9f);
+                var tier = Tier;
+                if (tier != null)
+                {
+                    Encounter.GrantXp(tier.xp, enemy.transform.position);
+                }
                 Invoke(nameof(ResetEnemy), 3f);
             }
 

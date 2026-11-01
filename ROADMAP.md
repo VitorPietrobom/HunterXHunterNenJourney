@@ -120,6 +120,8 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 ## World (only after the core loop is proven — GDD §15)
 
 - [x] ⚠️ **A goal: the Chimera Ant campaign.** Four ant squads (a soldier and two grunts) camp in clearings in the woods, each tougher than the last (×1, 1.25, 1.5, 1.8). They wait until you come within 12 m — Zetsu shrinks that, and a strike on an unaware ant opens with an ambush — then all three attack, taking turns to wind up. Run 34 m away and they regroup; fall and you wake at the rest bench. Cleared squads are saved. Clearing all four breaks the King's seal on the **castle to the north**, where **Meruem** (1300 HP) waits on his throne. A HUD objective shows progress and the way to the next fight. *Playtest the difficulty curve against a fresh save.*
+- [x] ⚠️ **Hunting**: each ant notices you on its own (8 m, posted 7 m apart), so you can pull one or two at a time; one chased 30 m from its post gives up and goes home healed. Beaten ants respawn after 90 s once you're away (the King doesn't), so camps can be farmed. **Hunter XP and levels**: kills (grunt 12, soldier 30, ×camp strength; King 600) and arena wins (10–70) give XP; each level is +3% max health and +2% damage, and a level-up refills health and stamina.
+- [x] ⚠️ **Area hits**: Scissors cuts everyone in its 80° sweep at full damage; Rock's shockwave (3 m) and Paper's burst (2.5 m) hit others near the target for half.
 
 - [ ] ◻️ Hunter's Haven hub, then The Frontier, Combat District, Forbidden Zone (GDD §10).
 - [ ] ◻️ Capability-gated routes (e.g. mountain path needs Mobility).

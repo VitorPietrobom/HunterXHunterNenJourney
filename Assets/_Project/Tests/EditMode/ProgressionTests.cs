@@ -212,6 +212,22 @@ namespace HunterAwakening.Tests
         }
 
         [Test]
+        public void HunterXp_LevelsUpAndBoostsStats()
+        {
+            var p = new ProgressionService(config, PlayerState.CreateNew());
+            Assert.AreEqual(1, p.HunterLevel);
+            Assert.AreEqual(0, p.AddHunterXp(StatEffects.XpToNextLevel(1) - 1), "one short of the next level");
+            Assert.AreEqual(1, p.AddHunterXp(1), "the last point levels up");
+            Assert.AreEqual(2, p.HunterLevel);
+            Assert.Greater(StatEffects.XpToNextLevel(5), StatEffects.XpToNextLevel(1), "later levels take more XP");
+            Assert.AreEqual(1f, StatEffects.HunterLevelDamageFactor(1), 1e-4f, "no bonus at level 1");
+            Assert.Greater(StatEffects.HunterLevelHealthFactor(10), 1f);
+            var (into, needed) = StatEffects.LevelProgress(StatEffects.XpToNextLevel(1) + 5);
+            Assert.AreEqual(5, into, 1e-6);
+            Assert.AreEqual(StatEffects.XpToNextLevel(2), needed, 1e-6);
+        }
+
+        [Test]
         public void IncompleteSession_GivesNoAdaptation_ButStillCostsFatigue()
         {
             var p = new ProgressionService(config, PlayerState.CreateNew());

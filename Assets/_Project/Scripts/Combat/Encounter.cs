@@ -4,10 +4,12 @@ using UnityEngine;
 namespace HunterAwakening
 {
     /// <summary>
-    /// A group of opponents out in the world (a chimera ant squad, or the King in his castle). They wait at their post
-    /// until the player comes close — a player hidden in Zetsu can slip past — then all turn on them at once. Running
-    /// far enough away makes them give up and regroup; falling in the fight sends the player back to the rest bench.
-    /// Beating every member clears the encounter for good (saved), and the fight counts as sparring training.
+    /// A camp of opponents out in the world (a chimera ant squad, or the King in his castle). Each member waits at its
+    /// post and notices the player on its own — come close to one and only that one attacks, so a careful hunter can
+    /// pull them one or two at a time. A player hidden in Zetsu can get closer, and a strike on an unaware member
+    /// opens with an ambush. A member chased too far from its post gives up and goes back healed; falling in a fight
+    /// sends the player back to the rest bench. Every kill grants Hunter XP. Beaten ants return after a while (so they
+    /// can be hunted again); the King does not. Having every member down at once clears the camp for good (saved).
     /// </summary>
     public class Encounter : MonoBehaviour
     {
@@ -19,26 +21,39 @@ namespace HunterAwakening
         [SerializeField] EnemyController[] members = System.Array.Empty<EnemyController>();
         [Tooltip("Fixed stats per member, applied on start (same order as members).")]
         [SerializeField] RivalTier[] stats = System.Array.Empty<RivalTier>();
-        [SerializeField] float aggroRadius = 12f;
-        [SerializeField] float leashRadius = 32f;
+        [SerializeField] float aggroRadius = 8f;
+        [Tooltip("How far from its post a member follows the player before giving up.")]
+        [SerializeField] float leashRadius = 30f;
+        [Tooltip("Seconds before a beaten member returns (0 = never).")]
+        [SerializeField] float respawnTime = 90f;
         [SerializeField] Transform respawnPoint;
         [SerializeField] ExerciseDefinition sparringExercise;
         [SerializeField] ExerciseDefinition gyoReadingExercise;
 
         PlayerContext player;
         CombatTracker tracker;
-        bool engaged;
-        int remaining;
+        float[] defeatedAt;
+        bool fightLost;
 
         public string Id => id;
         public string DisplayName => displayName;
         public bool IsBoss => isBoss;
-        public bool Engaged => engaged;
+        /// <summary>Any member is fighting the player.</summary>
+        public bool Engaged
+        {
+            get
+            {
+                foreach (var m in members)
+                    if (m.IsActive) return true;
+                return false;
+            }
+        }
+        /// <summary>Beaten for good at least once (opens the castle; ants still come back to be hunted).</summary>
         public bool Cleared => GameSession.Instance != null && GameSession.Instance.Progression.IsEncounterCleared(id);
 
         /// <summary>Set by the scene builder.</summary>
         public void Configure(string encounterId, string name, bool boss, EnemyController[] enemies, RivalTier[] tiers,
-            float aggro, float leash, Transform respawn, ExerciseDefinition sparring, ExerciseDefinition gyo)
+            float aggro, float leash, float respawn, Transform respawnAt, ExerciseDefinition sparring, ExerciseDefinition gyo)
         {
             id = encounterId;
             displayName = name;
@@ -47,7 +62,8 @@ namespace HunterAwakening
             stats = tiers;
             aggroRadius = aggro;
             leashRadius = leash;
-            respawnPoint = respawn;
+            respawnTime = respawn;
+            respawnPoint = respawnAt;
             sparringExercise = sparring;
             gyoReadingExercise = gyo;
         }
@@ -57,96 +73,106 @@ namespace HunterAwakening
 
         void Start()
         {
+            defeatedAt = new float[members.Length];
             for (int i = 0; i < members.Length; i++)
-                if (i < stats.Length) members[i].ApplyTier(stats[i]);
-            if (Cleared)
+            {
+                var m = members[i];
+                int index = i;
+                if (i < stats.Length) m.ApplyTier(stats[i]);
+                m.Provoked += () => OnProvoked(m);
+                m.Defeated += () => OnMemberDefeated(index);
+                m.AttackLaunched += () => tracker?.RegisterEnemyAttack();
+                m.TelegraphStarted += OnTelegraphStarted;
+            }
+            // A beaten King stays beaten.
+            if (isBoss && Cleared)
                 foreach (var m in members) m.gameObject.SetActive(false);
-            foreach (var m in members) m.Provoked += OnProvoked;
-        }
-
-        void OnDestroy()
-        {
-            foreach (var m in members)
-                if (m != null) m.Provoked -= OnProvoked;
-        }
-
-        /// <summary>Struck before it noticed the player (a Zetsu ambush): the whole group wakes.</summary>
-        void OnProvoked()
-        {
-            if (engaged || Cleared || GameSession.Instance == null) return;
-            if (player == null) player = GameSession.Instance.Player;
-            Engage();
         }
 
         void Update()
         {
             var session = GameSession.Instance;
-            if (session == null || session.Player == null || Cleared) return;
+            if (session == null || session.Player == null) return;
             if (player == null) player = session.Player;
+            if (session.TitleOpen) return;
 
-            if (!engaged)
+            for (int i = 0; i < members.Length; i++)
             {
-                if (player.Health.IsDead || session.TitleOpen) return;
-                if (Spots(player)) Engage();
-                return;
+                var m = members[i];
+                if (!m.gameObject.activeInHierarchy) continue;
+                if (m.IsDefeated)
+                {
+                    TryRespawn(i);
+                    continue;
+                }
+                float fromPost = Flat(player.transform.position - m.SpawnPosition);
+                if (m.IsActive)
+                {
+                    // Chased too far from its post: it gives up and goes home to lick its wounds.
+                    if (fromPost > leashRadius)
+                    {
+                        m.ResetToIdle();
+                        fightLost = true;
+                        session.PushNotice(isBoss ? "You slip out of the throne room. The King waits." : $"The {m.DisplayName} gives up the chase.", 2.5f);
+                    }
+                }
+                else if (!player.Health.IsDead && Flat(player.transform.position - m.transform.position) <= AggroRange())
+                {
+                    Engage(m);
+                }
             }
-
-            Vector3 d = player.transform.position - transform.position;
-            d.y = 0f;
-            if (d.magnitude > leashRadius)
-            {
-                session.PushNotice(isBoss ? "You slip out of the throne room. The King waits." : $"The {displayName} loses interest and regroups.", 3f);
-                End(false, regroup: true);
-            }
+            if (tracker != null && !Engaged) EndFight();
         }
 
-        /// <summary>Whether a waiting member notices the player: close enough, unless Zetsu hides them.</summary>
-        bool Spots(PlayerContext p)
+        static float Flat(Vector3 v)
         {
-            var progression = GameSession.Instance.Progression;
-            float range = aggroRadius;
-            if (p.Aura.ZetsuActive)
-                range = Mathf.Min(range, StatEffects.ZetsuDetectionRange(progression.GetMastery(TechniqueId.Zetsu)));
-            foreach (var m in members)
-            {
-                if (m.IsDefeated || !m.gameObject.activeInHierarchy) continue;
-                Vector3 d = p.transform.position - m.transform.position;
-                d.y = 0f;
-                if (d.magnitude <= range) return true;
-            }
-            return false;
+            v.y = 0f;
+            return v.magnitude;
         }
 
-        void Engage()
+        /// <summary>How close the player can get before a member notices: Zetsu hides their presence.</summary>
+        float AggroRange()
         {
-            engaged = true;
-            remaining = 0;
-            tracker = new CombatTracker(Strongest());
+            if (!player.Aura.ZetsuActive) return aggroRadius;
+            float zetsu = StatEffects.ZetsuDetectionRange(GameSession.Instance.Progression.GetMastery(TechniqueId.Zetsu));
+            return Mathf.Min(aggroRadius, zetsu);
+        }
+
+        /// <summary>Struck before it noticed the player (a Zetsu ambush): only that one wakes.</summary>
+        void OnProvoked(EnemyController m)
+        {
+            if (GameSession.Instance == null) return;
+            if (player == null) player = GameSession.Instance.Player;
+            Engage(m);
+        }
+
+        void Engage(EnemyController m)
+        {
+            if (m.IsActive || m.IsDefeated) return;
+            if (tracker == null) StartFight();
+            m.Engage(player.Combat);
+            var session = GameSession.Instance;
+            if (isBoss) session.PushNotice("The King rises from his throne. \"So you are the one who came this far.\"", 4f);
+            else session.PushNotice($"A {m.DisplayName} has noticed you!", 2f);
+            ImpactEffects.RivalFlare(isBoss ? 3f : 1f);
+        }
+
+        void StartFight()
+        {
+            fightLost = false;
+            tracker = new CombatTracker(ReportTier());
             player.Combat.Tracker = tracker;
             player.Vitals.Exhausted += tracker.RegisterStaminaOut;
             player.Health.Died += OnPlayerDied;
-            foreach (var m in members)
-            {
-                if (m.IsDefeated) continue;
-                remaining++;
-                m.Engage(player.Combat);
-                m.Defeated += OnMemberDefeated;
-                m.AttackLaunched += tracker.RegisterEnemyAttack;
-                m.TelegraphStarted += OnTelegraphStarted;
-            }
-            var session = GameSession.Instance;
-            session.PushNotice(isBoss ? "The King rises from his throne. \"So you are the one who came this far.\""
-                : remaining > 1 ? $"Chimera ants! {remaining} of them — keep them in front of you." : "A chimera ant attacks!", 3.5f);
-            ImpactEffects.RivalFlare(isBoss ? 3f : 1.5f);
         }
 
-        RivalTier Strongest()
+        RivalTier ReportTier()
         {
             RivalTier best = null;
             foreach (var t in stats)
                 if (best == null || t.maxHealth > best.maxHealth) best = t;
             if (best == null) return null;
-            // The report names the encounter, not one member.
+            // The report names the camp, not one member.
             return new RivalTier
             {
                 id = id, displayName = displayName, maxHealth = best.maxHealth, attackDamage = best.attackDamage,
@@ -156,78 +182,104 @@ namespace HunterAwakening
 
         void OnTelegraphStarted()
         {
-            if (!player.Aura.GyoActive) return;
+            if (tracker == null || !player.Aura.GyoActive) return;
             tracker.RegisterGyoRead();
             GameSession.Instance.Progression.ApplyMastery(TechniqueId.Gyo, 0.5f);
         }
 
-        void OnMemberDefeated()
+        void OnMemberDefeated(int index)
         {
-            remaining--;
-            // The fallen stop blocking the way.
-            foreach (var m in members)
-                if (m.IsDefeated && m.TryGetComponent(out CharacterController cc)) cc.enabled = false;
-            if (remaining <= 0) End(true, regroup: false);
-        }
+            var m = members[index];
+            defeatedAt[index] = Time.time;
+            if (m.TryGetComponent(out CharacterController cc)) cc.enabled = false; // the fallen stop blocking the way
 
-        void OnPlayerDied() => End(false, regroup: true);
-
-        void End(bool won, bool regroup)
-        {
-            if (!engaged) return;
-            engaged = false;
             var session = GameSession.Instance;
             var progression = session.Progression;
+            GrantXp(index < stats.Length ? stats[index].xp : 0f, m.transform.position);
 
+            bool allDown = true;
+            foreach (var other in members)
+                if (!other.IsDefeated) allDown = false;
+            if (!allDown) return;
+
+            bool first = !Cleared;
+            progression.MarkEncounterCleared(id);
+            HitFeedback.SlowMotion(0.3f, isBoss ? 1.6f : 0.9f);
+            if (isBoss) session.PushNotice("The King has fallen. You did it, Hunter — the Chimera Ant threat is over.", 10f);
+            else if (first)
+            {
+                int left = SquadsLeft();
+                session.PushNotice(left > 0 ? $"Camp cleared! {left} chimera ant camp{(left == 1 ? "" : "s")} left in the woods."
+                    : "Every camp is down. The castle gate to the north has opened.", 6f);
+            }
+            else session.PushNotice("Camp cleared again. They'll be back.", 3f);
+        }
+
+        void OnPlayerDied()
+        {
+            var session = GameSession.Instance;
+            fightLost = true;
+            // Whoever was fighting goes home healed; the dead stay dead until they respawn.
+            foreach (var m in members)
+                if (m.IsActive) m.ResetToIdle();
+            if (player.Health.IsDead) // another camp in the same brawl may have handled it already
+            {
+                player.Health.RestoreFraction(0.5f);
+                if (respawnPoint != null) player.Motor.Teleport(respawnPoint.position, respawnPoint.eulerAngles.y);
+                session.Progression.AddExertion(10f);
+                session.PushNotice("You were beaten and dragged yourself back to the rest bench. Train, then try again.", 6f);
+            }
+            EndFight();
+        }
+
+        /// <summary>No member is fighting any more: report the fight, and count it as training.</summary>
+        void EndFight()
+        {
+            if (tracker == null) return;
+            var session = GameSession.Instance;
+            var progression = session.Progression;
             player.Vitals.Exhausted -= tracker.RegisterStaminaOut;
             player.Health.Died -= OnPlayerDied;
             if (player.Combat.Tracker == tracker) player.Combat.Tracker = null;
-            Health lastHealth = null;
-            foreach (var m in members)
-            {
-                m.Defeated -= OnMemberDefeated;
-                m.AttackLaunched -= tracker.RegisterEnemyAttack;
-                m.TelegraphStarted -= OnTelegraphStarted;
-                lastHealth = m.Health;
-                if (!won) m.Deactivate();
-            }
 
-            var report = tracker.Finish(won, lastHealth, progression);
+            bool won = !fightLost;
+            Health strongest = members.Length > 0 ? members[0].Health : null;
+            var report = tracker.Finish(won, strongest, progression);
             var sparring = tracker.SparringOutcome(won, progression);
             var gyo = tracker.GyoOutcome(progression);
             tracker = null;
-
-            if (won)
-            {
-                progression.MarkEncounterCleared(id);
-                HitFeedback.SlowMotion(0.3f, isBoss ? 1.6f : 0.9f);
-                if (isBoss) session.PushNotice("The King has fallen. You did it, Hunter — the Chimera Ant threat is over.", 10f);
-                else
-                {
-                    int left = SquadsLeft();
-                    session.PushNotice(left > 0 ? $"Squad cleared! {left} chimera ant squad{(left == 1 ? "" : "s")} left in the woods."
-                        : "Every squad is down. The castle gate to the north has opened.", 6f);
-                }
-            }
-            else if (regroup)
-            {
-                if (player.Health.IsDead)
-                {
-                    player.Health.RestoreFraction(0.5f);
-                    if (respawnPoint != null) player.Motor.Teleport(respawnPoint.position, respawnPoint.eulerAngles.y);
-                    progression.AddExertion(10f);
-                    session.PushNotice("You were beaten and dragged yourself back to the rest bench. Train, then try again.", 6f);
-                }
-                // Survivors and the fallen alike regroup at full strength.
-                foreach (var m in members) m.ResetToIdle();
-            }
 
             session.ReportCombat(report);
             if (sparringExercise != null) progression.ApplyExercise(sparringExercise, sparring);
             if (gyo != null && gyoReadingExercise != null && progression.IsAuraAwakened) progression.ApplyExercise(gyoReadingExercise, gyo);
         }
 
-        /// <summary>Ant squads (not the King) still standing.</summary>
+        /// <summary>A beaten ant comes back once its time is up — never in front of the player.</summary>
+        void TryRespawn(int index)
+        {
+            if (isBoss || respawnTime <= 0f || Time.time - defeatedAt[index] < respawnTime) return;
+            var m = members[index];
+            if (Flat(player.transform.position - m.SpawnPosition) < aggroRadius + 15f) return;
+            m.ResetToIdle();
+        }
+
+        /// <summary>Hunter XP for a beaten opponent: a callout where it fell, and a full heal and fanfare on a level-up.</summary>
+        public static void GrantXp(float xp, Vector3 at)
+        {
+            var session = GameSession.Instance;
+            if (session == null || xp <= 0f) return;
+            DamageNumbers.Callout(at + Vector3.up * 2.6f, $"+{xp:0} XP");
+            if (session.Progression.AddHunterXp(xp) <= 0) return;
+            var p = session.Player;
+            if (p == null) return;
+            p.Health.RestoreFull();
+            p.Vitals.RestoreFull();
+            DamageNumbers.Callout(p.transform.position + Vector3.up * 2.4f, $"LEVEL UP!  Lv {session.Progression.HunterLevel}");
+            ImpactEffects.RivalFlare(2.5f);
+            HitFeedback.SlowMotion(0.4f, 0.6f);
+        }
+
+        /// <summary>Ant camps (not the King) never yet cleared.</summary>
         public static int SquadsLeft()
         {
             int left = 0;
@@ -246,10 +298,12 @@ namespace HunterAwakening
 
         void OnDrawGizmosSelected()
         {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(transform.position, aggroRadius);
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(transform.position, leashRadius);
+            foreach (var m in members)
+            {
+                if (m == null) continue;
+                Gizmos.color = Color.red;
+                Gizmos.DrawWireSphere(m.transform.position, aggroRadius);
+            }
         }
     }
 }
