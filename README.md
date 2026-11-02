@@ -40,6 +40,9 @@ tells you *why* you lost and what to train next.
 - Start as **Gon**, or **create a Hunter**: pick a name, a body, a height and an aura colour, then answer
   **Kite's interview**. Your answers decide your **Nen type** and write you an **original Hatsu**: a real Lua script
   with its own name, style and vow.
+- Or take the interview with **your own AI**: the game gives you a prompt to paste into any AI assistant (Claude,
+  ChatGPT, …). It interviews you with open questions as Kite and writes your Hatsu script; paste the reply back, or save
+  the `.lua` file into the game's Hatsu folder, and the game checks and loads it.
 - Your Hatsu is code you can change: open the dashboard (**Tab → Hatsu**) to read and edit it, check it, and use your
   version in the game. Scripts run in a sandbox (the [MoonSharp](https://www.moonsharp.org/) Lua interpreter) through a
   small `nen` API (sense foes, strike, launch projectiles, bind, push, heal, buff, schedule effects), with no access to

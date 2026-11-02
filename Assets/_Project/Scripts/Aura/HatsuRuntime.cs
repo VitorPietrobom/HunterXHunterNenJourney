@@ -22,8 +22,10 @@ namespace HunterAwakening
 
         public struct Meta
         {
-            public string name, vow;
+            public string name, vow, description;
             public float cost, cooldown, charge;
+            /// <summary>The Nen type the script declares (hatsu.type), if any.</summary>
+            public NenType? type;
         }
 
         class Timer
@@ -121,10 +123,23 @@ namespace HunterAwakening
                 error = "hatsu.activate must be a function: it runs when the Hatsu is used.";
                 return false;
             }
+            NenType? declared = null;
+            var typeValue = t.Get("type");
+            if (typeValue.Type == DataType.String)
+            {
+                if (Enum.TryParse(typeValue.String.Trim(), true, out NenType parsed)) declared = parsed;
+                else
+                {
+                    error = $"hatsu.type \"{typeValue.String}\" isn't a Nen type: use Enhancer, Transmuter, Emitter, Conjurer, Manipulator or Specialist.";
+                    return false;
+                }
+            }
             meta = new Meta
             {
                 name = t.Get("name").CastToString() ?? "Hatsu",
                 vow = t.Get("vow").CastToString() ?? "",
+                description = t.Get("description").CastToString() ?? "",
+                type = declared,
                 cost = Mathf.Clamp((float)(t.Get("cost").CastToNumber() ?? 40), 10f, 150f),
                 cooldown = Mathf.Clamp((float)(t.Get("cooldown").CastToNumber() ?? 3), 0.5f, 30f),
                 charge = Mathf.Clamp((float)(t.Get("charge").CastToNumber() ?? 0), 0f, 3f),

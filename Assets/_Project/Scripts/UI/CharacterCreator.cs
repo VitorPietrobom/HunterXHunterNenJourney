@@ -11,7 +11,7 @@ namespace HunterAwakening
     /// </summary>
     public class CharacterCreator : MonoBehaviour
     {
-        enum Page { Closed, Choice, Customize, Interview, Result }
+        enum Page { Closed, Choice, Customize, Interview, Result, AiPrompt, AiImport }
 
         static readonly Color[] Swatches =
         {
@@ -25,7 +25,10 @@ namespace HunterAwakening
         readonly List<int> picks = new List<int>();
         int bodyIndex;
         bool autoColor = true;
-        Vector2 codeScroll;
+        Vector2 codeScroll, promptScroll, importScroll;
+        string aiPrompt, imported = "", importStatus, lastError;
+        bool importOk;
+        HatsuRuntime.Meta importMeta;
         System.Action onDone;
 
         public bool IsOpen => page != Page.Closed;
@@ -75,6 +78,8 @@ namespace HunterAwakening
                 case Page.Customize: DrawCustomize(); break;
                 case Page.Interview: DrawInterview(); break;
                 case Page.Result: DrawResult(); break;
+                case Page.AiPrompt: DrawAiPrompt(); break;
+                case Page.AiImport: DrawAiImport(); break;
             }
         }
 
@@ -126,7 +131,7 @@ namespace HunterAwakening
         void DrawCustomize()
         {
             // Left side, so the orbiting camera shows the body in the middle of the screen.
-            float w = 380f, h = 470f;
+            float w = 380f, h = 520f;
             var r = new Rect(30f, (Screen.height - h) / 2f, w, h);
             HudGui.Panel(r);
             GUI.Label(new Rect(r.x, r.y + 14, r.width, 18), "CREATE YOUR HUNTER", HudGui.Eyebrow);
@@ -186,11 +191,19 @@ namespace HunterAwakening
             bool named = !string.IsNullOrWhiteSpace(profile.name);
             if (GUI.Button(new Rect(x, r.yMax - 50, 110, 34), "Back")) page = Page.Choice;
             GUI.enabled = named;
-            if (GUI.Button(new Rect(x + fw - 180, r.yMax - 50, 180, 34), named ? "Meet Kite" : "Choose a name", HudGui.PrimaryButton))
+            if (GUI.Button(new Rect(x + fw - 180, r.yMax - 50, 180, 34), named ? "Kite's interview" : "Choose a name", HudGui.PrimaryButton))
             {
                 profile.name = profile.name.Trim();
                 picks.Clear();
                 page = Page.Interview;
+            }
+            // Or: an open interview with the player's own AI assistant, which writes the Hatsu script.
+            if (GUI.Button(new Rect(x, r.yMax - 92, fw, 34), named ? "Interview with my own AI (open questions)" : "Choose a name first"))
+            {
+                profile.name = profile.name.Trim();
+                aiPrompt = HatsuLibrary.AiPrompt(profile);
+                promptScroll = Vector2.zero;
+                page = Page.AiPrompt;
             }
             GUI.enabled = true;
         }
@@ -232,6 +245,120 @@ namespace HunterAwakening
             if (autoColor) profile.auraColor = HatsuLibrary.TypeColor(profile.nenType);
             codeScroll = Vector2.zero;
             page = Page.Result;
+        }
+
+        // ------------------------------------------------------------------ Your own AI
+
+        void DrawAiPrompt()
+        {
+            var r = Card(Mathf.Min(980f, Screen.width - 40f), Mathf.Min(660f, Screen.height - 40f));
+            Header(r, "INTERVIEW WITH YOUR OWN AI", "Let Kite meet you");
+            float x = r.x + 26f, y = r.y + 84f, w = r.width - 52f;
+            GUI.Label(new Rect(x, y, w, 64),
+                "1. <b>Copy the prompt</b> below and paste it into your AI assistant (Claude, ChatGPT, …).\n" +
+                "2. It becomes Kite and <b>interviews you with open questions</b> — answer as yourself.\n" +
+                "3. At the end it decides your Nen type and writes your <b>Hatsu as a Lua script</b>. Copy it, or save it as a .lua file in the Hatsu folder, and continue.",
+                HudGui.Wrap);
+            y += 72f;
+            var area = new Rect(x, y, w, r.yMax - 60f - y);
+            HudGui.Fill(area, new Color(0f, 0f, 0f, 0.35f));
+            var mono = HatsuPage.Mono;
+            float textH = mono.CalcHeight(new GUIContent(aiPrompt), w - 30f);
+            promptScroll = GUI.BeginScrollView(area, promptScroll, new Rect(0, 0, w - 20f, textH + 10f));
+            GUI.Label(new Rect(6, 4, w - 30f, textH), aiPrompt, mono);
+            GUI.EndScrollView();
+
+            if (GUI.Button(new Rect(x, r.yMax - 50, 110, 34), "Back")) page = Page.Customize;
+            if (GUI.Button(new Rect(x + 120, r.yMax - 50, 170, 34), "Copy the prompt", HudGui.PrimaryButton))
+            {
+                GUIUtility.systemCopyBuffer = aiPrompt;
+                session.PushNotice("Prompt copied — paste it into your AI.", 3f);
+            }
+            if (GUI.Button(new Rect(x + 300, r.yMax - 50, 190, 34), "Open the Hatsu folder"))
+                Application.OpenURL("file:///" + HatsuLibrary.HatsuFolder.Replace('\\', '/'));
+            if (GUI.Button(new Rect(r.xMax - 26 - 250, r.yMax - 50, 250, 34), "I have my Hatsu script →", HudGui.PrimaryButton))
+            {
+                importStatus = null;
+                importOk = false;
+                page = Page.AiImport;
+            }
+        }
+
+        void CheckImport()
+        {
+            imported = HatsuLibrary.CleanPasted(imported);
+            importOk = HatsuRuntime.Validate(imported, out importMeta, out var error);
+            importStatus = importOk
+                ? $"<color=#66dd77><b>It works.</b></color> {importMeta.name}" +
+                  (importMeta.type.HasValue ? $" · {importMeta.type}" : " · <color=#ffc552>no type given (hatsu.type)</color>") +
+                  $" · cost {importMeta.cost:0} · cooldown {importMeta.cooldown:0.#}s · charge {importMeta.charge:0.#}s"
+                : $"<color=#ff7766><b>Problem:</b></color> {error}";
+            lastError = importOk ? null : error;
+        }
+
+        void DrawAiImport()
+        {
+            var r = Card(Mathf.Min(980f, Screen.width - 40f), Mathf.Min(660f, Screen.height - 40f));
+            Header(r, "IMPORT YOUR HATSU", "Bring it back");
+            float x = r.x + 26f, y = r.y + 84f, w = r.width - 52f;
+            GUI.Label(new Rect(x, y, w, 40),
+                "Paste the script (or the AI's whole reply — the Lua block is picked out), or load a .lua file from the Hatsu folder. Then check it.",
+                HudGui.Wrap);
+            y += 44f;
+
+            // Files waiting in the Hatsu folder, newest first.
+            var files = HatsuLibrary.HatsuFiles();
+            float fx = x;
+            for (int i = 0; i < files.Length && i < 4; i++)
+            {
+                string file = System.IO.Path.GetFileName(files[i]);
+                float bw = Mathf.Min(220f, HudGui.Label.CalcSize(new GUIContent(file)).x + 40f);
+                if (GUI.Button(new Rect(fx, y, bw, 28), file))
+                {
+                    imported = System.IO.File.ReadAllText(files[i]);
+                    CheckImport();
+                }
+                fx += bw + 8f;
+            }
+            if (files.Length == 0)
+                GUI.Label(new Rect(x, y + 4, w, 22), "<size=12><color=#9aa4b2>No .lua files in the Hatsu folder yet.</color></size>", HudGui.Wrap);
+            y += 36f;
+
+            var area = new Rect(x, y, w, r.yMax - 110f - y);
+            float textH = Mathf.Max(area.height - 4f, HatsuPage.MonoArea.CalcHeight(new GUIContent(imported ?? ""), w - 24f) + 20f);
+            importScroll = GUI.BeginScrollView(area, importScroll, new Rect(0, 0, w - 20f, textH));
+            string edited = GUI.TextArea(new Rect(0, 0, w - 20f, textH), imported ?? "", HatsuPage.MonoArea);
+            GUI.EndScrollView();
+            if (edited != imported)
+            {
+                imported = edited;
+                importOk = false;
+                importStatus = null;
+            }
+            if (!string.IsNullOrEmpty(importStatus)) GUI.Label(new Rect(x, r.yMax - 98, w, 40), $"<size=13>{importStatus}</size>", HudGui.Wrap);
+
+            if (GUI.Button(new Rect(x, r.yMax - 50, 110, 34), "Back")) page = Page.AiPrompt;
+            if (GUI.Button(new Rect(x + 120, r.yMax - 50, 170, 34), "Paste from clipboard"))
+            {
+                imported = GUIUtility.systemCopyBuffer ?? "";
+                CheckImport();
+            }
+            if (GUI.Button(new Rect(x + 300, r.yMax - 50, 110, 34), "Check")) CheckImport();
+            if (!importOk && !string.IsNullOrEmpty(lastError) && GUI.Button(new Rect(x + 420, r.yMax - 50, 210, 34), "Copy the error for my AI"))
+            {
+                GUIUtility.systemCopyBuffer = $"The game rejected the Hatsu script with this error: {lastError}\nPlease fix it and send the complete corrected script again in one ```lua block.";
+                session.PushNotice("Error copied — paste it to your AI.", 3f);
+            }
+            GUI.enabled = importOk;
+            if (GUI.Button(new Rect(r.xMax - 26 - 220, r.yMax - 50, 220, 34), importOk ? $"Begin as {profile.name}" : "Check it first", HudGui.PrimaryButton))
+            {
+                HatsuLibrary.Adopt(profile, imported, importMeta);
+                if (autoColor) profile.auraColor = HatsuLibrary.TypeColor(profile.nenType);
+                profile.interviewAnswers.Clear();
+                profile.interviewAnswers.Add("(interviewed by the player's own AI)");
+                Finish(profile);
+            }
+            GUI.enabled = true;
         }
 
         // ------------------------------------------------------------------ Result

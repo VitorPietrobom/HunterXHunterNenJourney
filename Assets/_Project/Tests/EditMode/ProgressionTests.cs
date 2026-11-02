@@ -229,6 +229,23 @@ namespace HunterAwakening.Tests
         }
 
         [Test]
+        public void AiReply_ImportsTheLuaBlock()
+        {
+            string reply = "You're an Emitter.\n\n```lua\nhatsu = { name = \"Spark\", type = \"emitter\", description = \"A shot.\", cost = 30 }\n" +
+                           "function hatsu.activate(power) nen.projectile({ power = 1 }) end\n```\nSave it as spark.lua.";
+            string lua = HatsuLibrary.CleanPasted(reply);
+            StringAssert.StartsWith("hatsu = {", lua);
+            Assert.IsTrue(HatsuRuntime.Validate(lua, out var meta, out var error), error);
+            Assert.AreEqual(NenType.Emitter, meta.type);
+            var hunter = new HunterProfile { custom = true, name = "Test" };
+            HatsuLibrary.Adopt(hunter, lua, meta);
+            Assert.AreEqual("Spark", hunter.hatsuName);
+            Assert.AreEqual(NenType.Emitter, hunter.nenType);
+            Assert.IsFalse(HatsuRuntime.Validate("hatsu = { type = 'Wizard' }\nfunction hatsu.activate(p) end", out _, out _), "unknown types are rejected");
+            StringAssert.Contains("nen.strike", HatsuLibrary.AiPrompt(hunter), "the prompt carries the API");
+        }
+
+        [Test]
         public void HatsuSandbox_StopsLoopsAndHidesTheSystem()
         {
             Assert.IsFalse(HatsuRuntime.Validate("hatsu = {}\nfunction hatsu.activate(p) end\nwhile true do end", out _, out var loop));

@@ -202,6 +202,8 @@ namespace HunterAwakening
             sb.AppendLine();
             sb.AppendLine("hatsu = {");
             sb.AppendLine($"  name = \"{name}\",");
+            sb.AppendLine($"  type = \"{type}\",");
+            sb.AppendLine($"  description = \"{description}\",");
             // Invariant numbers: Lua needs "1.4", whatever the player's locale writes.
             var inv = System.Globalization.CultureInfo.InvariantCulture;
             sb.AppendLine($"  cost = {cost.ToString("0", inv)},        -- aura spent each use (more aura = more power per use)");
@@ -423,9 +425,98 @@ end
 end
 ";
 
+        /// <summary>
+        /// The prompt a player pastes into their own AI assistant: it plays Kite, interviews them with open questions,
+        /// decides their Nen type and writes their Hatsu as a script for this game (imported back on the creator or the
+        /// dashboard's Hatsu page). Self-contained: the rules, the API and a worked example.
+        /// </summary>
+        public static string AiPrompt(HunterProfile hunter)
+        {
+            string name = string.IsNullOrWhiteSpace(hunter.name) ? "the player" : hunter.name;
+            var example = new HunterProfile { custom = true, name = "Example" };
+            Author(example, new[] { 0, 0, 0, 0, 0, 3, 0, 0 });
+            return
+$@"You are Kite, the Hunter from Hunter x Hunter, and you are about to interview a new Hunter named {name} for the game ""Hunter: Awakening"". Your job: find out who they are, decide their Nen type, and design an original Hatsu (Nen ability) for them — then write it as a Lua script the game will run.
+
+THE INTERVIEW
+- Stay in character as Kite: calm, direct, a little dry, genuinely curious.
+- Ask open questions, ONE at a time, and wait for each answer. Ask between 6 and 10 in total.
+- Adapt: build each question on their previous answers. Explore how they think, what they care about, how they fight, how they handle losing, what they would never do, what they would sacrifice for strength, and what kind of ability they dream of.
+- Do not show a menu of options and do not mention Nen types during the questions.
+- Use the Hunter x Hunter personality chart to decide their type: Enhancers are simple, determined and honest; Transmuters whimsical, unpredictable, a bit deceptive; Emitters quick-tempered and impulsive but quick to forgive; Conjurers high-strung, serious and observant; Manipulators logical, argumentative and go at their own pace; Specialists individualistic and charismatic (rare).
+
+THE RESULT
+When you have enough, tell them their Nen type (and what Water Divination would show), then their Hatsu: its name, what it does, and a vow (a restriction that makes it stronger) that fits who they are — the vow must be enforced by the code. Then output the complete script in ONE ```lua code block, and tell them to save it as a .lua file (or copy it) and import it in the game.
+
+THE SCRIPT FORMAT (Lua 5.2, run in a sandbox)
+The script must define a global table `hatsu` and a function `hatsu.activate(power)`.
+- Only these are available: the `nen` table below, plus Lua's string, table and math libraries, pairs/ipairs/tostring/tonumber/type/select/pcall/error/next. There is NO io, os.execute, require, load or dofile.
+- Do not do anything at load time except define `hatsu`, local helpers and functions.
+- activate(power) runs each time the Hatsu is used. power is 0.25..1: how long the player charged it (holding V for `charge` seconds).
+- Balance is enforced by the game: one use can deal at most about cost/10 ""power"" in total (x1.25 if the script declares a vow), where 1 power = one heavy punch. Damage also scales with the player's stats. So design something clever and characterful, not just huge numbers.
+- If the use fizzles (no target, vow not kept), call nen.cancel() and return: the aura is refunded.
+- Keep every loop bounded: a script that runs too long is stopped.
+
+THE NEN API
+{Reference}
+
+A COMPLETE EXAMPLE (an Enhancer's Hatsu)
+```lua
+{example.hatsuSource.TrimEnd()}
+```
+
+Write a Hatsu that is truly theirs: use their answers for its name, its look (say what it does in nen.callout and nen.say lines), its behaviour and its vow. Start the interview now with your first question.";
+        }
+
+        /// <summary>Where players drop .lua files from their AI (created on demand).</summary>
+        public static string HatsuFolder
+        {
+            get
+            {
+                string folder = System.IO.Path.Combine(Application.persistentDataPath, "Hatsu");
+                System.IO.Directory.CreateDirectory(folder);
+                return folder;
+            }
+        }
+
+        /// <summary>The .lua files in the Hatsu folder, newest first.</summary>
+        public static string[] HatsuFiles()
+        {
+            var files = System.IO.Directory.GetFiles(HatsuFolder, "*.lua");
+            System.Array.Sort(files, (a, b) => System.IO.File.GetLastWriteTimeUtc(b).CompareTo(System.IO.File.GetLastWriteTimeUtc(a)));
+            return files;
+        }
+
+        /// <summary>
+        /// Takes what the player pasted (often a whole AI reply) and returns just the Lua: the first ```lua (or ```)
+        /// block when there is one, the text as-is otherwise.
+        /// </summary>
+        public static string CleanPasted(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            text = text.Replace("\r\n", "\n");
+            int fence = text.IndexOf("```", System.StringComparison.Ordinal);
+            if (fence < 0) return text.Trim();
+            int start = text.IndexOf('\n', fence);
+            if (start < 0) return text.Trim();
+            int end = text.IndexOf("```", start, System.StringComparison.Ordinal);
+            return (end < 0 ? text.Substring(start + 1) : text.Substring(start + 1, end - start - 1)).Trim();
+        }
+
+        /// <summary>Makes an imported (checked) script the Hunter's Hatsu, taking its name, type, description and vow.</summary>
+        public static void Adopt(HunterProfile hunter, string source, HatsuRuntime.Meta meta)
+        {
+            hunter.hatsuSource = hunter.generatedSource = source;
+            hunter.hatsuName = meta.name;
+            hunter.hatsuVow = meta.vow ?? "";
+            hunter.hatsuDescription = (meta.description ?? "") + (string.IsNullOrEmpty(meta.vow) ? "" : $" Vow: {meta.vow}");
+            if (meta.type.HasValue) hunter.nenType = meta.type.Value;
+        }
+
         /// <summary>The API reference shown on the Hatsu page.</summary>
         public const string Reference =
-@"hatsu = { name, cost (10-150), cooldown (0.5-30 s), charge (0-3 s), vow }
+@"hatsu = { name, type, description, cost (10-150), cooldown (0.5-30 s), charge (0-3 s), vow }
+  type: Enhancer | Transmuter | Emitter | Conjurer | Manipulator | Specialist
 function hatsu.activate(power)   -- runs on use; power 0.25..1 from charging
 
 SENSE   nen.nearest(radius) -> foe or nil (your lock-on target first)

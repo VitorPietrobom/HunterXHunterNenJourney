@@ -25,7 +25,8 @@ namespace HunterAwakening
             }
         }
 
-        static GUIStyle MonoArea
+        /// <summary>The code editor's text area style.</summary>
+        public static GUIStyle MonoArea
         {
             get
             {
@@ -97,6 +98,11 @@ namespace HunterAwakening
                 {
                     hunter.hatsuSource = draft;
                     hunter.hatsuName = meta.name;
+                    // A script can redefine who you are: its declared type and description replace the old ones.
+                    if (meta.type.HasValue) hunter.nenType = meta.type.Value;
+                    if (!string.IsNullOrEmpty(meta.description))
+                        hunter.hatsuDescription = meta.description + (string.IsNullOrEmpty(meta.vow) ? "" : $" Vow: {meta.vow}");
+                    hunter.hatsuVow = meta.vow ?? "";
                     runtime?.Reload();
                     session.Save();
                     status = $"<color=#66dd77>Saved.</color> {meta.name} is ready.";
@@ -113,6 +119,31 @@ namespace HunterAwakening
                 draft = hunter.generatedSource;
                 status = "The interview's version is in the editor — Save & use to keep it.";
             }
+            GUILayout.EndHorizontal();
+
+            // Redo it with your own AI: the prompt out, the script back in.
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("<size=12>With your own AI:</size>", HudGui.Small, GUILayout.Width(120));
+            if (GUILayout.Button("Copy the interview prompt", GUILayout.Height(26)))
+            {
+                GUIUtility.systemCopyBuffer = HatsuLibrary.AiPrompt(hunter);
+                status = "Prompt copied — paste it into your AI, then bring the script back here.";
+            }
+            if (GUILayout.Button("Paste a script", GUILayout.Height(26)))
+            {
+                draft = HatsuLibrary.CleanPasted(GUIUtility.systemCopyBuffer ?? "");
+                GUIUtility.keyboardControl = 0;
+                status = "Pasted into the editor — Check it, then Save & use.";
+            }
+            var files = HatsuLibrary.HatsuFiles();
+            if (files.Length > 0 && GUILayout.Button($"Load {System.IO.Path.GetFileName(files[0])}", GUILayout.Height(26)))
+            {
+                draft = HatsuLibrary.CleanPasted(System.IO.File.ReadAllText(files[0]));
+                GUIUtility.keyboardControl = 0;
+                status = "Loaded the newest file from the Hatsu folder — Check it, then Save & use.";
+            }
+            if (GUILayout.Button("Open the Hatsu folder", GUILayout.Height(26)))
+                Application.OpenURL("file:///" + HatsuLibrary.HatsuFolder.Replace('\\', '/'));
             GUILayout.EndHorizontal();
             GUILayout.EndVertical();
 
