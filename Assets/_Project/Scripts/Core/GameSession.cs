@@ -50,7 +50,9 @@ namespace HunterAwakening
         /// <summary>True while any full-screen UI owns the mouse and keyboard.</summary>
         /// <summary>The launch title screen is up (see TitleScreen).</summary>
         public bool TitleOpen { get; set; }
-        public bool InputBlocked => DashboardOpen || Paused || TitleOpen || DialogueBox.IsOpen || EndingOpen;
+        public bool InputBlocked => DashboardOpen || Paused || TitleOpen || DialogueBox.IsOpen || EndingOpen || CheatsOpen;
+        /// <summary>The Ctrl+O cheat menu is open (see CheatMenu).</summary>
+        public bool CheatsOpen { get; set; }
         /// <summary>The ending screen is up (see EndingScreen).</summary>
         public bool EndingOpen { get; set; }
         public bool ShowHelp { get; set; } = true;
@@ -89,6 +91,7 @@ namespace HunterAwakening
             if (GetComponent<MusicDirector>() == null) gameObject.AddComponent<MusicDirector>();
             if (GetComponent<DialogueBox>() == null) gameObject.AddComponent<DialogueBox>();
             if (GetComponent<EndingScreen>() == null) gameObject.AddComponent<EndingScreen>();
+            if (GetComponent<CheatMenu>() == null) gameObject.AddComponent<CheatMenu>();
             Progression.Notice += text => PushNotice(text, 5f);
         }
 
@@ -112,7 +115,7 @@ namespace HunterAwakening
             var input = player != null ? player.Input : null;
             // Typing in a text field (the Hatsu editor, a name) mustn't trigger the hotkeys.
             bool typing = GUIUtility.keyboardControl != 0;
-            if (input != null && !TitleOpen && !DialogueBox.IsOpen && !EndingOpen && !typing)
+            if (input != null && !TitleOpen && !DialogueBox.IsOpen && !EndingOpen && !CheatsOpen && !typing)
             {
                 if (input.PausePressed) SetPaused(!Paused);
                 if (input.DashboardPressed && !Paused) DashboardOpen = !DashboardOpen;

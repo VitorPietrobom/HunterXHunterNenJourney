@@ -519,7 +519,7 @@ namespace HunterAwakening
         /// <summary>Called by an enemy whose attack connects this frame.</summary>
         public void ReceiveHit(float damage, EnemyController attacker)
         {
-            if (IsDefeated) return;
+            if (IsDefeated || CheatMenu.GodMode) return;
             var tracker = Tracker;
 
             if (motor.IsInvulnerable)

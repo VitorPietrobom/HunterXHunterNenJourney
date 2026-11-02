@@ -372,7 +372,7 @@ namespace HunterAwakening
                 "T Ten · hold R Ren · Z Zetsu · hold G Gyo · Ten+Ren Ken\n" +
                 "F Ko · hold V Jajanken (release Rock · RMB Paper · LMB Scissors)\n" +
                 "Middle mouse / X lock on · light, light, heavy combo\n" +
-                "Tab dashboard and Hunter's Guide · Esc pause/settings · F5 save · F9 reload · F1 hide";
+                "Tab dashboard and Hunter's Guide · Esc pause/settings · F5 save · F9 reload · Ctrl+O cheats · F1 hide";
             const float w = 460f;
             // Sized to the text, so a new line of controls never spills out of the panel.
             float h = HudGui.Wrap.CalcHeight(new GUIContent(text), w - 20f) + 12f;

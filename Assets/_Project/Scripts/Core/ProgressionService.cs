@@ -318,6 +318,9 @@ namespace HunterAwakening
             if (!HasHeardStory(id)) state.knowledge.Add("story:" + id);
         }
 
+        /// <summary>For tools that edit the state directly (the cheat menu): derived stats are recomputed.</summary>
+        public void NotifyChanged() => StateChanged?.Invoke();
+
         public HunterProfile Hunter => state.hunter;
         public bool IsCustomHunter => state.hunter != null && state.hunter.custom;
 
