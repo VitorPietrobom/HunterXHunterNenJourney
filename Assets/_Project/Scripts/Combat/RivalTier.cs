@@ -57,8 +57,8 @@ namespace HunterAwakening
         /// <summary>Meruem, the King: the castle's final fight.</summary>
         public static RivalTier King() => new RivalTier
         {
-            id = "king", displayName = "Meruem, the Chimera Ant King", maxHealth = 1300f, moveSpeed = 4.6f, attackDamage = 52f,
-            telegraphTime = 0.5f, recoveryTime = 0.6f, attackCooldown = 0.75f, baseGuardChance = 0.35f, damageReduction = 0.3f,
+            id = "king", displayName = "Meruem, the Chimera Ant King", maxHealth = 1000f, moveSpeed = 4.6f, attackDamage = 44f,
+            telegraphTime = 0.55f, recoveryTime = 0.65f, attackCooldown = 0.8f, baseGuardChance = 0.3f, damageReduction = 0.25f,
             presence = 55f, attackRange = 2.4f, xp = 600f,
         };
     }

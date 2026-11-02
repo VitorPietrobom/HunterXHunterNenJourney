@@ -18,10 +18,10 @@ namespace HunterAwakening.EditorTools
         // Bearing from the training grounds (degrees from +X towards +Z), distance, and how much tougher the squad is.
         static readonly (string id, float angle, float distance, float strength)[] Camps =
         {
-            ("ants_south", 290f, 62f, 1f),
-            ("ants_east", 20f, 64f, 1.25f),
-            ("ants_west", 200f, 64f, 1.5f),
-            ("ants_north", 115f, 66f, 1.8f),
+            ("ants_south", 290f, 62f, 0.75f),
+            ("ants_east", 20f, 64f, 1f),
+            ("ants_west", 200f, 64f, 1.25f),
+            ("ants_north", 115f, 66f, 1.5f),
         };
 
         static void BuildWorld(Materials m, ExerciseDefinition sparringDef, ExerciseDefinition gyoDef, Transform respawn)

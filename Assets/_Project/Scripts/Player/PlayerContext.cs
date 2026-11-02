@@ -65,7 +65,8 @@ namespace HunterAwakening
             // Out of a match, health trickles back after a short breather (the bench is still faster and clears fatigue).
             sinceDamaged += Time.deltaTime;
             if (Combat.Tracker == null && sinceDamaged >= RegenDelay && !Health.IsDead)
-                Health.Heal(RegenPerSecond * Time.deltaTime);
+                Health.Heal(RegenPerSecond * Time.deltaTime
+                            * (GameSession.Instance.Progression.KnowsInsight(WaterDivination.EnhancerInsight) ? StatEffects.EnhancerRegenMultiplier : 1f));
         }
 
         void OnDestroy()

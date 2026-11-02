@@ -27,6 +27,10 @@ namespace HunterAwakening
         /// </summary>
         public static float NenStrikeStrengthFactor(double strength) => 1f + 0.5f * (StrengthDamageFactor(strength) - 1f);
         public static float OneRepMaxKg(double strength) => 50f * (1f + 1.2f * G(strength));
+        // Enhancer affinity (Water Divination): aura-powered strikes and natural healing.
+        public const float EnhancerStrikeMultiplier = 1.1f;
+        public const float EnhancerRegenMultiplier = 1.5f;
+
         // Hunter Level: experience from real fights, on top of what training builds.
         public const float HunterLevelHealthBonus = 0.03f;
         public const float HunterLevelDamageBonus = 0.02f;

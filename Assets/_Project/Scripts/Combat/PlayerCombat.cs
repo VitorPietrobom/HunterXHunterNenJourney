@@ -429,7 +429,8 @@ namespace HunterAwakening
                            * (currentIsRock ? StatEffects.JajankenDamageMultiplier(rockCharge, maxOutput, P.GetMastery(TechniqueId.Jajanken))
                                               * (scissors ? StatEffects.JajankenScissorsFactor : 1f) : 1f)
                            * StatEffects.ComboDamageMultiplier(comboStep, comboFinisher)
-                           * StatEffects.HunterLevelDamageFactor(P.HunterLevel);
+                           * StatEffects.HunterLevelDamageFactor(P.HunterLevel)
+                           * (aura.RenActive || currentIsKo || currentIsRock ? EnhancerFactor : 1f);
 
             var hit = new HitInfo { damage = damage, technique = current.technique, heavy = current.heavy, ren = aura.RenActive || currentIsKo || currentIsRock, ambush = ambush };
             if (ambush)
@@ -617,7 +618,7 @@ namespace HunterAwakening
             float strength = StatEffects.NenStrikeStrengthFactor(P.GetAttribute(AttributeId.Strength)) * P.StrainPenalty(BodyArea.Upper);
             float damage = current.baseDamage * strength * aura.OutgoingMultiplier * Mathf.Lerp(0.8f, 1f, P.Fatigue.Readiness)
                            * StatEffects.JajankenDamageMultiplier(rockCharge, maxOutput, P.GetMastery(TechniqueId.Jajanken))
-                           * StatEffects.JajankenPaperFactor * StatEffects.HunterLevelDamageFactor(P.HunterLevel);
+                           * StatEffects.JajankenPaperFactor * StatEffects.HunterLevelDamageFactor(P.HunterLevel) * EnhancerFactor;
             var hit = new HitInfo
             {
                 damage = damage, technique = TechniqueId.Jajanken, heavy = true, ren = true,
@@ -650,6 +651,9 @@ namespace HunterAwakening
             ImpactEffects.Ko(point);
             GameSession.Instance.PushNotice(charge >= 1f ? $"PAPER! {dealt:0} damage — the full chant." : $"PAPER! {dealt:0} damage.", 2f);
         }
+
+        /// <summary>An Enhancer (found by Water Divination) hits harder with every aura-powered strike.</summary>
+        float EnhancerFactor => P.KnowsInsight(WaterDivination.EnhancerInsight) ? StatEffects.EnhancerStrikeMultiplier : 1f;
 
         // ------------------------------------------------------------------ Area hits
 

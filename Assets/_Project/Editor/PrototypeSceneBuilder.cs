@@ -293,6 +293,77 @@ namespace HunterAwakening.EditorTools
             SetRef(drill, "definition", def);
             SetRef(drill, "standPoint", stand.transform);
             StationProps.Seal(m.AuraMat, new Color(0.3f, 0.9f, 1f));
+
+            BuildWaterDivination(m);
+        }
+
+        /// <summary>The Nen-type test: a glass filled to the brim with a leaf on top, on a small table near the stone.</summary>
+        static void BuildWaterDivination(Materials m)
+        {
+            var table = Prim(PrimitiveType.Cube, "Water Divination", null, new Vector3(-9.5f, 0.4f, -5f), new Vector3(1.2f, 0.8f, 0.8f), m.Wood);
+            var t = table.transform;
+            // Children of the table, laid out in world units: undo the table's scale.
+            var top = Empty("Glass", t, Vector3.zero, 0f, local: true).transform;
+            top.localScale = new Vector3(1f / 1.2f, 1f / 0.8f, 1f / 0.8f);
+            top.localPosition = new Vector3(0f, 0.5f, 0f);
+
+            var glass = Prim(PrimitiveType.Cylinder, "Glass Wall", top, new Vector3(0f, 0.25f, 0f), new Vector3(0.3f, 0.25f, 0.3f), TransparentMat("DivinationGlass", new Color(0.85f, 0.95f, 1f, 0.22f)), false);
+            glass.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var waterMat = Mat("DivinationWater", new Color(0.25f, 0.55f, 0.95f));
+            waterMat.SetFloat("_Smoothness", 0.9f);
+            var water = Prim(PrimitiveType.Cylinder, "Water", top, new Vector3(0f, 0.22f, 0f), new Vector3(0.27f, 0.22f, 0.27f), waterMat, false);
+            var leaf = Prim(PrimitiveType.Cube, "Leaf", top, new Vector3(0.02f, 0.445f, 0f), new Vector3(0.18f, 0.006f, 0.09f), Mat("DivinationLeaf", new Color(0.3f, 0.6f, 0.2f)), false);
+
+            // Water spilling over the rim once the glass overflows.
+            var spillGo = new GameObject("Spill");
+            spillGo.transform.SetParent(top, false);
+            spillGo.transform.localPosition = new Vector3(0f, 0.5f, 0f);
+            var spill = spillGo.AddComponent<ParticleSystem>();
+            spill.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = spill.main;
+            main.startLifetime = 0.6f;
+            main.startSpeed = 0.6f;
+            main.startSize = 0.04f;
+            main.gravityModifier = 1.2f;
+            main.startColor = new Color(0.45f, 0.7f, 1f, 0.9f);
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            var shape = spill.shape;
+            shape.shapeType = ParticleSystemShapeType.Circle;
+            shape.radius = 0.15f;
+            shape.rotation = new Vector3(-90f, 0f, 0f);
+            var emission = spill.emission;
+            emission.rateOverTime = 0f;
+            spillGo.GetComponent<ParticleSystemRenderer>().sharedMaterial = ParticleMaterial();
+            spill.Play();
+
+            var divination = table.AddComponent<WaterDivination>();
+            SetString(divination, "displayName", "Water Divination");
+            SetFloat(divination, "interactRadius", 2.5f);
+            SetFloat(divination, "spillHeight", 0.15f);
+            divination.Configure(water.transform, leaf.transform, spill);
+            EditorUtility.SetDirty(divination);
+        }
+
+        static Material TransparentMat(string name, Color color)
+        {
+            string path = $"{MaterialDir}/{name}.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            mat.SetFloat("_Surface", 1f);
+            mat.SetFloat("_Blend", 0f);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_Smoothness", 0.95f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            mat.SetColor("_BaseColor", color);
+            EditorUtility.SetDirty(mat);
+            return mat;
         }
 
         static void BuildGyoStones(Materials m, ExerciseDefinition def)

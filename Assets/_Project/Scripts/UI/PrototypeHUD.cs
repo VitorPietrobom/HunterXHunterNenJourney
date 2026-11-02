@@ -91,7 +91,10 @@ namespace HunterAwakening
             if (left > 0)
             {
                 goal = $"Clear the chimera ant camps  <color=#ffc552>{total - left}/{total}</color>";
-                detail = "They lurk in the woods. Zetsu lets you sneak up for an ambush.";
+                detail = !session.Progression.IsAuraAwakened
+                    ? "They lurk in the woods — too strong for an untrained body. Train and awaken your aura first."
+                    : left == total ? "They lurk in the woods. Pull them one at a time; Zetsu lets you sneak up for an ambush."
+                    : "They lurk in the woods. Each camp is tougher than the last — train between hunts.";
                 target = nearest;
             }
             else if (boss != null && !boss.Cleared)
@@ -218,6 +221,8 @@ namespace HunterAwakening
                 return p.TrainingSessions < 3
                     ? $"Condition your body: complete training sessions ({p.TrainingSessions}/3) at the Lift Rack, Sprint Course or Precision Pads."
                     : "Meditate at the Meditation Stone to awaken your aura.";
+            if (!p.KnowsInsight(WaterDivination.EnhancerInsight))
+                return "Learn your Nen type: Water Divination, the glass beside the Meditation Stone. Press E, then hold Ren (R).";
             if (p.BestSparringTime("rival") <= 0f)
                 return "Beat the Sparring Rival: dodge or parry the red wind-up, then punish the yellow opening.";
             bool ken = p.KnowsInsight(AuraController.KenInsight);
