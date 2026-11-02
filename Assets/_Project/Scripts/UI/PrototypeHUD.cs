@@ -52,8 +52,11 @@ namespace HunterAwakening
             DrawVitals(session);
             DrawObjective(session);
             DrawChant();
-            DrawPrompt();
-            DrawNotices(session);
+            if (!DialogueBox.IsOpen)
+            {
+                DrawPrompt();
+                DrawNotices(session);
+            }
             if (session.ShowHelp) DrawHelp();
             if (GameSettings.ShowFps) DrawFrameRate();
 
@@ -215,7 +218,7 @@ namespace HunterAwakening
 
         float panelsBottom;
 
-        static string NextGoal(ProgressionService p)
+        public static string NextGoal(ProgressionService p)
         {
             if (!p.IsAuraAwakened)
                 return p.TrainingSessions < 3

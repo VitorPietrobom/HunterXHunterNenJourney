@@ -205,7 +205,11 @@ namespace HunterAwakening
             bool first = !Cleared;
             progression.MarkEncounterCleared(id);
             HitFeedback.SlowMotion(0.3f, isBoss ? 1.6f : 0.9f);
-            if (isBoss) session.PushNotice("The King has fallen. You did it, Hunter — the Chimera Ant threat is over.", 10f);
+            if (isBoss)
+            {
+                session.PushNotice("The King has fallen. You did it, Hunter — the Chimera Ant threat is over.", 10f);
+                if (!progression.HasHeardStory("ending") && session.TryGetComponent(out EndingScreen ending)) ending.ShowAfter(4f);
+            }
             else if (first)
             {
                 int left = SquadsLeft();

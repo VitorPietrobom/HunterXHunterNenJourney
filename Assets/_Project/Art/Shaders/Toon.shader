@@ -6,6 +6,7 @@ Shader "HunterAwakening/Toon"
     {
         _BaseMap ("Base Map", 2D) = "white" {}
         _BaseColor ("Base Color", Color) = (1, 1, 1, 1)
+        _Cutoff ("Alpha Cutoff (0 = opaque)", Range(0, 1)) = 0
         [Header(Cel)]
         _ShadowTint ("Shadow Tint", Color) = (0.62, 0.55, 0.72, 1)
         _ShadowThreshold ("Shadow Threshold", Range(-1, 1)) = 0.05
@@ -30,11 +31,17 @@ Shader "HunterAwakening/Toon"
         CBUFFER_START(UnityPerMaterial)
             float4 _BaseMap_ST;
             half4 _BaseColor, _ShadowTint, _RimColor, _OutlineColor;
-            half _ShadowThreshold, _ShadowSoftness, _RimStrength, _RimWidth, _Glint, _OutlineWidth, _HitFlash;
+            half _ShadowThreshold, _ShadowSoftness, _RimStrength, _RimWidth, _Glint, _OutlineWidth, _HitFlash, _Cutoff;
         CBUFFER_END
 
         TEXTURE2D(_BaseMap);
         SAMPLER(sampler_BaseMap);
+
+        // Cut-out decals (eyelashes, brows, hair tips): texels below the cutoff are discarded in every pass.
+        void ClipAlpha(float2 uv)
+        {
+            clip(SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv).a * _BaseColor.a - _Cutoff);
+        }
         ENDHLSL
 
         Pass
@@ -77,6 +84,7 @@ Shader "HunterAwakening/Toon"
             half4 frag(Varyings i) : SV_Target
             {
                 half4 albedo = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv) * _BaseColor;
+                clip(albedo.a - _Cutoff);
                 float3 n = normalize(i.normalWS);
                 float3 v = normalize(GetWorldSpaceViewDir(i.positionWS));
 
@@ -148,6 +156,7 @@ Shader "HunterAwakening/Toon"
             half4 frag(Varyings i) : SV_Target
             {
                 // Ink takes a little of the surface colour so outlines on light clothes aren't harsh black.
+                ClipAlpha(i.uv);
                 half3 albedo = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv).rgb * _BaseColor.rgb;
                 half3 ink = lerp(_OutlineColor.rgb, albedo * 0.25, 0.35);
                 return half4(MixFog(ink, i.fog), 1);
@@ -173,10 +182,13 @@ Shader "HunterAwakening/Toon"
             float3 _LightDirection;
             float3 _LightPosition;
 
-            struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; };
+            struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; float2 uv : TEXCOORD0; };
+            struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; };
 
-            float4 vert(Attributes v) : SV_POSITION
+            Varyings vert(Attributes v)
             {
+                Varyings o;
+                o.uv = TRANSFORM_TEX(v.uv, _BaseMap);
                 float3 positionWS = TransformObjectToWorld(v.positionOS.xyz);
                 float3 normalWS = TransformObjectToWorldNormal(v.normalOS);
                 #if _CASTING_PUNCTUAL_LIGHT_SHADOW
@@ -190,10 +202,15 @@ Shader "HunterAwakening/Toon"
                 #else
                     positionCS.z = max(positionCS.z, UNITY_NEAR_CLIP_VALUE);
                 #endif
-                return positionCS;
+                o.positionCS = positionCS;
+                return o;
             }
 
-            half4 frag() : SV_Target { return 0; }
+            half4 frag(Varyings i) : SV_Target
+            {
+                ClipAlpha(i.uv);
+                return 0;
+            }
             ENDHLSL
         }
 
@@ -208,8 +225,22 @@ Shader "HunterAwakening/Toon"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            float4 vert(float4 positionOS : POSITION) : SV_POSITION { return TransformObjectToHClip(positionOS.xyz); }
-            half frag() : SV_Target { return 0; }
+            struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; };
+            struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; };
+
+            Varyings vert(Attributes v)
+            {
+                Varyings o;
+                o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                o.uv = TRANSFORM_TEX(v.uv, _BaseMap);
+                return o;
+            }
+
+            half frag(Varyings i) : SV_Target
+            {
+                ClipAlpha(i.uv);
+                return 0;
+            }
             ENDHLSL
         }
     }

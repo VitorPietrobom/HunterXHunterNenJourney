@@ -310,6 +310,14 @@ namespace HunterAwakening
             return gained;
         }
 
+        /// <summary>Story beats already told (Kite's conversations, the ending). Quiet: no history entry.</summary>
+        public bool HasHeardStory(string id) => state.knowledge.Contains("story:" + id);
+
+        public void MarkStory(string id)
+        {
+            if (!HasHeardStory(id)) state.knowledge.Add("story:" + id);
+        }
+
         public bool IsEncounterCleared(string id) => state.clearedEncounters.Contains(id);
 
         public void MarkEncounterCleared(string id)

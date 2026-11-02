@@ -168,6 +168,7 @@ namespace HunterAwakening.EditorTools
 
             BuildRestBench(m);
             BuildGuideBoard(m);
+            BuildMentor();
             BuildLiftRack(m, liftDef);
             BuildSprintCourse(m, sprintDef);
             BuildPrecisionPads(m, precisionDef);
@@ -185,6 +186,45 @@ namespace HunterAwakening.EditorTools
         }
 
         // ------------------------------------------------------------------ Areas
+
+        /// <summary>Kite, the mentor: stands near the spawn, facing the player as they arrive.</summary>
+        static void BuildMentor()
+        {
+            var host = Empty("Kite", null, new Vector3(3.5f, 0f, 4.5f), 218f);
+            var cc = host.AddComponent<CharacterController>();
+            cc.height = 2.3f;
+            cc.radius = 0.4f;
+            cc.center = Vector3.up * (cc.height * 0.5f + cc.skinWidth);
+            var mentor = host.AddComponent<Mentor>();
+            SetString(mentor, "displayName", "Kite");
+            SetFloat(mentor, "interactRadius", 3f);
+
+            var avatar = characterAnimator != null ? RivalModelSetup.Configure("Kite") : null;
+            var model = avatar != null ? AttachModel(host, cc, RivalModelSetup.ModelPath("Kite"), avatar, 2.3f, "Model") : null;
+            if (model == null)
+            {
+                Debug.LogWarning("[Hunter Awakening] Kite's model is missing (Rivals/Kite/Kite.fbx; see Rivals/prepare_kite.py.txt); he stands as a capsule.");
+                Prim(PrimitiveType.Capsule, "Model", host.transform, Vector3.up * 1.15f, new Vector3(0.8f, 1.15f, 0.8f), Mat("Player", new Color(0.9f, 0.9f, 0.88f)), false);
+                return;
+            }
+            model.transform.localRotation = Quaternion.Euler(0f, 180f, 0f); // the VRoid export faces backwards
+            ToonMaterials.Apply(model, "Kite");
+            // VRoid faces are layered cut-out decals (lashes, brows, eyeline): clip their transparent texels, and
+            // keep the ink outline off them so it doesn't draw boxes around the decals.
+            foreach (var r in model.GetComponentsInChildren<Renderer>())
+                foreach (var mat in r.sharedMaterials)
+                {
+                    if (mat == null || !mat.HasProperty("_Cutoff")) continue;
+                    bool decal = mat.name.Contains("_FACE") || mat.name.Contains("_EYE");
+                    // Only the decals and hair strands are cut out; skin and clothes stay solid.
+                    mat.SetFloat("_Cutoff", decal || mat.name.Contains("_HAIR") ? 0.5f : 0f);
+                    // The hat is a dense mesh of thin pieces: an outline turns it into noise.
+                    if (decal || mat.name == "htat") mat.SetFloat("_OutlineWidth", 0f);
+                    EditorUtility.SetDirty(mat);
+                }
+            mentor.Configure(model.GetComponent<Animator>());
+            EditorUtility.SetDirty(mentor);
+        }
 
         /// <summary>A notice board by the rest bench that opens the Hunter's Guide.</summary>
         static void BuildGuideBoard(Materials m)

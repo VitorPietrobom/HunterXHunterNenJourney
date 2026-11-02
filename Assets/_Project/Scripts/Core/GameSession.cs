@@ -44,7 +44,9 @@ namespace HunterAwakening
         /// <summary>True while any full-screen UI owns the mouse and keyboard.</summary>
         /// <summary>The launch title screen is up (see TitleScreen).</summary>
         public bool TitleOpen { get; set; }
-        public bool InputBlocked => DashboardOpen || Paused || TitleOpen;
+        public bool InputBlocked => DashboardOpen || Paused || TitleOpen || DialogueBox.IsOpen || EndingOpen;
+        /// <summary>The ending screen is up (see EndingScreen).</summary>
+        public bool EndingOpen { get; set; }
         public bool ShowHelp { get; set; } = true;
         public bool IsResting { get; set; }
         public TrainingReport LastTrainingReport { get; private set; }
@@ -79,6 +81,8 @@ namespace HunterAwakening
             if (GetComponent<DamageNumbers>() == null) gameObject.AddComponent<DamageNumbers>();
             if (GetComponent<TitleScreen>() == null) gameObject.AddComponent<TitleScreen>();
             if (GetComponent<MusicDirector>() == null) gameObject.AddComponent<MusicDirector>();
+            if (GetComponent<DialogueBox>() == null) gameObject.AddComponent<DialogueBox>();
+            if (GetComponent<EndingScreen>() == null) gameObject.AddComponent<EndingScreen>();
             Progression.Notice += text => PushNotice(text, 5f);
         }
 
@@ -100,7 +104,7 @@ namespace HunterAwakening
             notices.RemoveAll(n => Time.unscaledTime > n.expires);
 
             var input = player != null ? player.Input : null;
-            if (input != null && !TitleOpen)
+            if (input != null && !TitleOpen && !DialogueBox.IsOpen && !EndingOpen)
             {
                 if (input.PausePressed) SetPaused(!Paused);
                 if (input.DashboardPressed && !Paused) DashboardOpen = !DashboardOpen;

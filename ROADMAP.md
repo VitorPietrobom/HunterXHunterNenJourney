@@ -99,6 +99,13 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 - [ ] ◻️ Tune the dodge roll's playback speed and the attack clip timing once combat is playtested.
 - [ ] ◻️ Performance: hair mesh is ~100k vertices. Decimate if the 144 fps target isn't held in a build.
 
+## Story
+
+- [x] ⚠️ **Kite, the mentor** (`Mentor`): Ging's student, standing by the spawn. He greets a new player as soon as the game starts, then tells the story in beats that unlock with progress — awakening, Water Divination (Enhancer), the first real fight, the first ant camp, Jajanken, the castle opening, the King's fall — marked with "(!)" over his head; otherwise he points at the next goal. Model: a VRoid VRChat avatar, prepared by `Rivals/prepare_kite.py.txt` (VRoid bones renamed to Mixamo, split weight groups merged, eye overlays dropped, hat bound to the head). Toon shader gained an alpha cutout for VRoid's face decals.
+- [x] ⚠️ **Dialogue box** (`DialogueBox`): name plate, typed-out lines, E / Space / click to continue; blocks gameplay input.
+- [x] ⚠️ **Ending** (`EndingScreen`): the first time the King falls, the screen fades into a short epilogue, the journey's numbers and credits; "Keep training" returns to free play.
+- [ ] ◻️ More voices: Killua and Kurapika as friendly NPCs with a few lines each; a short opening shot (camera pan) before Kite speaks.
+
 ## UI
 
 - [x] ⚠️ **Hunter's Guide**: a second page of the dashboard (Tab) and a notice board by the rest bench (E). Chapters: The Path (goal, stations, fatigue, Hunter Level), Nen Basics, Advanced Nen, Water Divination (and the six types), Jajanken, Combat, The Hunt. Entries unlock as you learn them; locked ones say how to get them.

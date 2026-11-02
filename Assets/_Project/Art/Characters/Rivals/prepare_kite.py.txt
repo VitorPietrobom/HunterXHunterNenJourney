@@ -1,0 +1,139 @@
+"""Headless Blender: turn the Kite VRChat avatar (a VRoid model, glTF from Unity2Sketchfab) into a game-ready FBX.
+
+The avatar is already rigged with VRoid's J_Bip_* skeleton in a T-pose, so instead of auto-rigging it the bones are
+renamed to the Mixamo names the rest of the pipeline uses (Unity maps them to Humanoid automatically). Each material
+is linked to its texture from the download's textures folder (the glTF only carries a placeholder), and the eye
+highlight / extra overlays, which have no textures, are removed so they don't render as white blobs.
+
+Usage: blender -b --factory-startup --disable-autoexec --python prepare_kite.py.txt -- GLTF TEXTURE_DIR OUT_FBX
+"""
+import re
+import sys
+
+import bpy
+import bmesh
+
+gltf, texture_dir, out_path = sys.argv[sys.argv.index("--") + 1:][:3]
+
+# glTF material name -> texture file
+TEXTURES = {
+    "M00_000_00_FaceBrow_00_FACE": "M00_000_00_FaceBrow_00.png",
+    "M00_000_00_FaceMouth_00_FACE": "M00_000_00_FaceMouth_00.png",
+    "M00_000_00_EyeIris_00_EYE": "M00_000_00_EyeIris_00.png",
+    "M00_000_00_Face_00_SKIN": "M00_000_00_Face_00.png",
+    "M00_000_00_FaceEyelash_00_FACE": "M00_000_00_FaceEyelash_00.png",
+    "M00_000_00_FaceEyeline_00_FACE": "M00_000_00_FaceEyeline_00.png",
+    "M00_001_01_Body_00_SKIN": "M00_001_00_Body_00.png",
+    "M00_001_01_Bottoms_01_CLOTH": "M00_001_01_Bottoms_01.png",
+    "M00_001_01_Shoes_01_CLOTH": "M00_001_01_Shoes_01.png",
+    "M00_008_03_Tops_01_CLOTH": "turtle_neck2.png",
+    "M00_000_HairBack_00_HAIR": "M00_000_HairBack_00.png",
+    "F00_000_Hair_00_HAIR": "F00_000_Hair_00.png",
+}
+# Plain colours for materials without a texture.
+COLOURS = {"htat": (0.95, 0.95, 0.93, 1.0), "M00_000_00_EyeWhite_00_EYE": (1.0, 1.0, 1.0, 1.0)}
+DROP = {"M00_000_00_EyeHighlight_00_EYE", "M00_000_00_EyeExtra_01_EYE"}
+
+BONES = {"J_Bip_C_Hips": "Hips", "J_Bip_C_Spine": "Spine", "J_Bip_C_Chest": "Spine1", "J_Bip_C_UpperChest": "Spine2",
+         "J_Bip_C_Neck": "Neck", "J_Bip_C_Head": "Head"}
+for side, word in (("L", "Left"), ("R", "Right")):
+    BONES.update({
+        f"J_Bip_{side}_Shoulder": f"{word}Shoulder", f"J_Bip_{side}_UpperArm": f"{word}Arm",
+        f"J_Bip_{side}_LowerArm": f"{word}ForeArm", f"J_Bip_{side}_Hand": f"{word}Hand",
+        f"J_Bip_{side}_UpperLeg": f"{word}UpLeg", f"J_Bip_{side}_LowerLeg": f"{word}Leg",
+        f"J_Bip_{side}_Foot": f"{word}Foot", f"J_Bip_{side}_ToeBase": f"{word}ToeBase",
+        f"J_Adj_{side}_FaceEye": f"{word}Eye",
+    })
+    for finger, mixamo in (("Thumb", "Thumb"), ("Index", "Index"), ("Middle", "Middle"), ("Ring", "Ring"), ("Little", "Pinky")):
+        for i in (1, 2, 3):
+            BONES[f"J_Bip_{side}_{finger}{i}"] = f"{word}Hand{mixamo}{i}"
+
+bpy.ops.wm.read_factory_settings(use_empty=True)
+bpy.ops.import_scene.gltf(filepath=gltf)
+
+# Textures: rebuild each material as Principled with its image (alpha wired for the cut-out face decals).
+for mat in bpy.data.materials:
+    if not mat.use_nodes:
+        continue
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    nodes.clear()
+    out = nodes.new("ShaderNodeOutputMaterial")
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+    if mat.name in TEXTURES:
+        tex = nodes.new("ShaderNodeTexImage")
+        tex.image = bpy.data.images.load(f"{texture_dir}/{TEXTURES[mat.name]}")
+        links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+        links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])
+    else:
+        bsdf.inputs["Base Color"].default_value = COLOURS.get(mat.name, (0.8, 0.8, 0.8, 1.0))
+
+# The glTF importer's bone-display sphere is not part of the character.
+for obj in [o for o in bpy.context.scene.objects if o.type == "MESH" and o.name.startswith("Icosphere")]:
+    bpy.data.objects.remove(obj, do_unlink=True)
+
+# Drop the untextured eye overlays.
+for obj in [o for o in bpy.context.scene.objects if o.type == "MESH"]:
+    drop = {i for i, slot in enumerate(obj.material_slots) if slot.material and slot.material.name in DROP}
+    if not drop:
+        continue
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.material_index in drop], context="FACES")
+    bm.to_mesh(obj.data)
+    bm.free()
+
+arm = next(o for o in bpy.context.scene.objects if o.type == "ARMATURE")
+
+# The glTF lists joints more than once, so the importer splits a bone's weights across "Bone", "Bone.001",
+# "Bone.002"…; only the plain name matches the bone. Fold the copies back into it, or most of the skin is lost.
+bone_names = {b.name for b in arm.data.bones}
+for obj in [o for o in bpy.context.scene.objects if o.type == "MESH"]:
+    groups = {g.name: g for g in obj.vertex_groups}
+    copies = [g for g in obj.vertex_groups if re.fullmatch(r".*\.\d{3}", g.name) and g.name[:-4] in bone_names]
+    for copy in copies:
+        base = groups.get(copy.name[:-4]) or obj.vertex_groups.new(name=copy.name[:-4])
+        groups[base.name] = base
+        for v in obj.data.vertices:
+            for g in v.groups:
+                if g.group == copy.index and g.weight > 0:
+                    base.add([v.index], g.weight, "ADD")
+    for copy in copies:
+        obj.vertex_groups.remove(copy)
+    print(f"KITE: {obj.name}: merged {len(copies)} duplicate weight groups")
+
+# Mixamo bone names (vertex groups follow the bones).
+renamed = 0
+for bone in arm.data.bones:
+    if bone.name in BONES:
+        bone.name = "mixamorig:" + BONES[bone.name]
+        renamed += 1
+# Renaming from a script leaves the vertex groups behind: rename them to match, or the skin is lost on export.
+for obj in [o for o in bpy.context.scene.objects if o.type == "MESH"]:
+    for group in obj.vertex_groups:
+        if group.name in BONES:
+            group.name = "mixamorig:" + BONES[group.name]
+
+# The hat is a separate, unskinned (and very dense) mesh: thin it out and bind it rigidly to the head.
+hat = next((o for o in bpy.context.scene.objects if o.type == "MESH" and "Hat" in o.name), None)
+if hat is not None:
+    bpy.context.view_layer.objects.active = hat
+    decimate = hat.modifiers.new("Decimate", "DECIMATE")
+    decimate.ratio = 0.35
+    bpy.ops.object.modifier_apply(modifier=decimate.name)
+    head = hat.vertex_groups.new(name="mixamorig:Head")
+    head.add([v.index for v in hat.data.vertices], 1.0, "REPLACE")
+    skin = hat.modifiers.new("Armature", "ARMATURE")
+    skin.object = arm
+print(f"KITE: renamed {renamed} bones, meshes {[o.name for o in bpy.context.scene.objects if o.type == 'MESH']}")
+
+bones = {b.name for b in arm.data.bones}
+for obj in [o for o in bpy.context.scene.objects if o.type == "MESH"]:
+    names = {g.index: g.name for g in obj.vertex_groups}
+    weighted = sum(1 for v in obj.data.vertices if any(g.weight > 0 and names.get(g.group) in bones for g in v.groups))
+    print(f"KITE: {obj.name} {weighted}/{len(obj.data.vertices)} vertices weighted to bones; parent {obj.parent and obj.parent.name}, "
+          f"modifiers {[m.type for m in obj.modifiers]}")
+
+bpy.ops.export_scene.fbx(filepath=out_path, use_selection=False, apply_scale_options="FBX_SCALE_ALL", add_leaf_bones=False,
+                         path_mode="COPY", embed_textures=True, bake_anim=False, use_armature_deform_only=False)
+print(f"KITE: saved {out_path}")
