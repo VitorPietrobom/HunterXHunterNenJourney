@@ -207,7 +207,9 @@ namespace HunterAwakening.EditorTools
                 Prim(PrimitiveType.Capsule, "Model", host.transform, Vector3.up * 1.15f, new Vector3(0.8f, 1.15f, 0.8f), Mat("Player", new Color(0.9f, 0.9f, 0.88f)), false);
                 return;
             }
-            model.transform.localRotation = Quaternion.Euler(0f, 180f, 0f); // the VRoid export faces backwards
+            // The shared Idle is a fighting stance that turns the chest ~60° to the side; turn the model back so he
+            // squarely faces whoever he's talking to.
+            model.transform.localRotation = Quaternion.Euler(0f, -60f, 0f);
             ToonMaterials.Apply(model, "Kite");
             // VRoid faces are layered cut-out decals (lashes, brows, eyeline): clip their transparent texels, and
             // keep the ink outline off them so it doesn't draw boxes around the decals.
