@@ -10,6 +10,7 @@ namespace HunterAwakening
     public class ProgressionDashboard
     {
         Vector2 leftScroll, middleScroll, rightScroll;
+        readonly HuntersGuide guide = new HuntersGuide();
         bool confirmDelete;
 
         public void Draw(GameSession session)
@@ -23,7 +24,27 @@ namespace HunterAwakening
 
             GUILayout.BeginArea(new Rect(area.x + 18, area.y + 12, area.width - 36, area.height - 24));
             GUILayout.Label("HUNTER: AWAKENING", HudGui.Eyebrow);
-            GUILayout.Label("Progression", HudGui.Title);
+            GUILayout.Label(session.GuidePage ? "Hunter's Guide" : "Progression", HudGui.Title);
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Progression", !session.GuidePage ? HudGui.PrimaryButton : GUI.skin.button, GUILayout.Width(150), GUILayout.Height(28)))
+                session.GuidePage = false;
+            if (GUILayout.Button("Hunter's Guide", session.GuidePage ? HudGui.PrimaryButton : GUI.skin.button, GUILayout.Width(150), GUILayout.Height(28)))
+                session.GuidePage = true;
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            if (session.GuidePage)
+            {
+                GUILayout.EndArea();
+                // Below the fixed header (eyebrow, title, page buttons), above the footer.
+                const float header = 96f, footer = 50f;
+                var guideArea = new Rect(area.x + 18, area.y + 12 + header, area.width - 36, area.height - 24 - header - footer);
+                guide.Draw(guideArea, p);
+                GUILayout.BeginArea(new Rect(area.x + 18, area.yMax - 50, area.width - 36, 40));
+                DrawFooter(session);
+                GUILayout.EndArea();
+                return;
+            }
             GUILayout.Label($"<color=#9aa4b2>Active play</color> {TimeSpan.FromSeconds(p.State.activePlaySeconds):hh\\:mm\\:ss}   " +
                             $"<color=#9aa4b2>Training sessions</color> {p.TrainingSessions}   <color=#9aa4b2>Progress only accrues while playing</color>",
                 new GUIStyle(HudGui.Center) { fontSize = 12 });

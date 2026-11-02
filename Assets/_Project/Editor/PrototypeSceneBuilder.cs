@@ -167,6 +167,7 @@ namespace HunterAwakening.EditorTools
             SetRef(hud, "worldCamera", camera);
 
             BuildRestBench(m);
+            BuildGuideBoard(m);
             BuildLiftRack(m, liftDef);
             BuildSprintCourse(m, sprintDef);
             BuildPrecisionPads(m, precisionDef);
@@ -184,6 +185,42 @@ namespace HunterAwakening.EditorTools
         }
 
         // ------------------------------------------------------------------ Areas
+
+        /// <summary>A notice board by the rest bench that opens the Hunter's Guide.</summary>
+        static void BuildGuideBoard(Materials m)
+        {
+            var root = Empty("Hunter's Guide Board", null, new Vector3(-4f, 0f, 7.5f), 332f); // its pinned side faces the spawn
+            var t = root.transform;
+            Prim(PrimitiveType.Cube, "Post L", t, new Vector3(-1.15f, 1.1f, 0f), new Vector3(0.14f, 2.2f, 0.14f), m.Wood);
+            Prim(PrimitiveType.Cube, "Post R", t, new Vector3(1.15f, 1.1f, 0f), new Vector3(0.14f, 2.2f, 0.14f), m.Wood);
+            Prim(PrimitiveType.Cube, "Board", t, new Vector3(0f, 1.45f, 0f), new Vector3(2.3f, 1.3f, 0.08f), m.Wood);
+            var paper = Mat("GuidePaper", new Color(0.93f, 0.89f, 0.78f));
+            // Pinned pages on the side facing the training grounds.
+            var pages = new[] { new Vector3(-0.62f, 1.62f), new Vector3(0.05f, 1.55f), new Vector3(0.7f, 1.65f), new Vector3(-0.35f, 1.12f), new Vector3(0.45f, 1.1f) };
+            for (int i = 0; i < pages.Length; i++)
+            {
+                var page = Prim(PrimitiveType.Cube, "Page", t, new Vector3(pages[i].x, pages[i].y, -0.05f), new Vector3(0.5f, 0.38f, 0.01f), paper, false);
+                page.transform.localRotation = Quaternion.Euler(0f, 0f, (i % 2 == 0 ? 1f : -1f) * (2f + i));
+            }
+            var roof = Prim(PrimitiveType.Cube, "Roof", t, new Vector3(0f, 2.2f, -0.05f), new Vector3(2.6f, 0.08f, 0.45f), m.Dark);
+            roof.transform.localRotation = Quaternion.Euler(-12f, 0f, 0f);
+
+            var titleGo = new GameObject("Title");
+            titleGo.transform.SetParent(t, false);
+            titleGo.transform.localPosition = new Vector3(0f, 2.0f, -0.06f);
+            var text = titleGo.AddComponent<TextMesh>();
+            text.text = "HUNTER'S GUIDE";
+            text.anchor = TextAnchor.MiddleCenter;
+            text.alignment = TextAlignment.Center;
+            text.characterSize = 0.05f;
+            text.fontSize = 48;
+            text.fontStyle = FontStyle.Bold;
+            text.color = new Color(1f, 0.85f, 0.45f);
+
+            var board = root.AddComponent<GuideBoard>();
+            SetString(board, "displayName", "Hunter's Guide");
+            SetFloat(board, "interactRadius", 3f);
+        }
 
         static void BuildRestBench(Materials m)
         {

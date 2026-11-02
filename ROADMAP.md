@@ -101,6 +101,8 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 
 ## UI
 
+- [x] ⚠️ **Hunter's Guide**: a second page of the dashboard (Tab) and a notice board by the rest bench (E). Chapters: The Path (goal, stations, fatigue, Hunter Level), Nen Basics, Advanced Nen, Water Divination (and the six types), Jajanken, Combat, The Hunt. Entries unlock as you learn them; locked ones say how to get them.
+
 - [x] ⚠️ **UI theme** (`HudGui`): rounded ink panels with a gold edge, Hunter-gold accent, shadowed text, rounded bars, themed buttons/checkboxes/sliders/scrollbars — all generated at runtime. Restyled pause menu (sections, aligned rows, gold Resume, danger Reset), HUD (vitals card with aura chips and key hints, next-goal card, fading toasts, gold key prompts) and dashboard (card columns, mastery bars, Jajanken locked state).
 - [x] ⚠️ **Title screen** on launch: the camera circles Gon behind the HUNTER / AWAKENING logo; Continue / Begin, New game (confirm) and Quit; Enter starts. Shown once per launch (so once per Play in the Editor).
 - [ ] ◻️ Port the IMGUI UI to UI Toolkit if it needs animation, controller navigation or localisation.

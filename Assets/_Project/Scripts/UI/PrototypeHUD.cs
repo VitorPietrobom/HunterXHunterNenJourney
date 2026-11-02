@@ -182,7 +182,7 @@ namespace HunterAwakening
             // Hunter Level: experience from beaten opponents.
             var (into, needed) = StatEffects.LevelProgress(p.HunterXp);
             HudGui.Bar(new Rect(x, y, w, 14), (float)(into / needed), HudGui.Gold,
-                $"<size=11><color=#1c1306><b>Hunter Lv {p.HunterLevel}</b>  {into:0} / {needed:0} XP</color></size>");
+                $"<size=11><b>Hunter Lv {p.HunterLevel}</b>  {into:0} / {needed:0} XP</size>");
             y += 18f;
 
             // Condition: two slim meters side by side.
@@ -199,7 +199,7 @@ namespace HunterAwakening
             if (a.JajankenUnlocked) keys += "<color=#ffc552><b>V</b></color> Rock   ";
             string strain = p.GetStrain(BodyArea.Upper) > 0.5f || p.GetStrain(BodyArea.Lower) > 0.5f
                 ? $"<color=#ff8866>strain {p.GetStrain(BodyArea.Upper):0}/{p.GetStrain(BodyArea.Lower):0}</color>   " : "";
-            GUI.Label(new Rect(x, y, w, 18), $"<size=11>{keys}{strain}<color=#9aa4b2>Sessions {p.TrainingSessions} · <b>Tab</b> dashboard · <b>F1</b> controls</color></size>", HudGui.Small);
+            GUI.Label(new Rect(x, y, w, 18), $"<size=11>{keys}{strain}<color=#9aa4b2>Sessions {p.TrainingSessions} · <b>Tab</b> dashboard & guide · <b>F1</b> controls</color></size>", HudGui.Small);
 
             // Guided next step, so a new player always knows what to aim for.
             float goalY = 16f + height;
@@ -345,7 +345,7 @@ namespace HunterAwakening
                 "T Ten · hold R Ren · Z Zetsu · hold G Gyo · Ten+Ren Ken\n" +
                 "F Ko · hold V Jajanken (release Rock · RMB Paper · LMB Scissors)\n" +
                 "Middle mouse / X lock on · light, light, heavy combo\n" +
-                "Tab dashboard · Esc pause/settings · F5 save · F9 reload · F1 hide";
+                "Tab dashboard and Hunter's Guide · Esc pause/settings · F5 save · F9 reload · F1 hide";
             const float w = 460f;
             // Sized to the text, so a new line of controls never spills out of the panel.
             float h = HudGui.Wrap.CalcHeight(new GUIContent(text), w - 20f) + 12f;

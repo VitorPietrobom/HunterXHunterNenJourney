@@ -30,6 +30,15 @@ namespace HunterAwakening
         public SaveService Saves { get; private set; }
         public PlayerContext Player => player;
         public bool DashboardOpen { get; set; }
+        /// <summary>The dashboard shows the Hunter's Guide instead of progression (the notice board opens it there).</summary>
+        public bool GuidePage { get; set; }
+
+        public void OpenGuide()
+        {
+            if (Paused) return;
+            GuidePage = true;
+            DashboardOpen = true;
+        }
         /// <summary>Pause menu open: time is stopped and gameplay input ignored.</summary>
         public bool Paused { get; set; }
         /// <summary>True while any full-screen UI owns the mouse and keyboard.</summary>
