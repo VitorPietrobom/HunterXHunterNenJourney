@@ -30,11 +30,12 @@ namespace HunterAwakening
 
         public bool IsOpen => page != Page.Closed;
 
-        void Awake() => session = GetComponent<GameSession>();
+        void Awake() => session ??= GetComponent<GameSession>();
 
         /// <summary>Starts the new-game choice; <paramref name="done"/> runs when the player starts playing.</summary>
         public void Open(System.Action done)
         {
+            session ??= GetComponent<GameSession>(); // may be opened before its own Awake ran
             onDone = done;
             profile = new HunterProfile { custom = true, name = "", body = "Gon" };
             picks.Clear();

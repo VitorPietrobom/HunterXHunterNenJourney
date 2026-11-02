@@ -174,6 +174,7 @@ namespace HunterAwakening
             SetPaused(false); // timeScale survives the reload
             Saves.Delete();
             PlayerPrefs.DeleteKey(ArenaController.TierPref);
+            TitleScreen.RequestNewGame();
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
 

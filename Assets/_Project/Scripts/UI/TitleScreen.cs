@@ -29,22 +29,39 @@ namespace HunterAwakening
             openedAt = Time.unscaledTime;
             creator = GetComponent<CharacterCreator>();
             if (creator == null) creator = gameObject.AddComponent<CharacterCreator>();
+            if (creatorPending)
+            {
+                creatorPending = false;
+                BeginNewHunter();
+            }
         }
 
         CharacterCreator creator;
-
-        void Start()
-        {
-            if (!creatorPending) return;
-            creatorPending = false;
-            BeginNewHunter();
-        }
 
         /// <summary>A fresh save: choose Gon or create a Hunter, then play.</summary>
         void BeginNewHunter() => creator.Open(Dismiss);
 
         bool FreshSave => session.Progression.TrainingSessions == 0 && !session.Progression.IsAuraAwakened
                           && !session.Progression.HasHeardStory("chosen");
+
+        // The editor skips reloading scripts between Plays (Enter Play Mode Options), so statics survive from the last
+        // run: reset them, or the title would only ever show once per editor session.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics()
+        {
+            shownThisLaunch = false;
+            creatorPending = false;
+        }
+
+        /// <summary>
+        /// Starting over (from the title, the pause menu or the dashboard): the reloaded scene opens on "Who are you?"
+        /// instead of dropping straight into the game.
+        /// </summary>
+        public static void RequestNewGame()
+        {
+            shownThisLaunch = true;
+            creatorPending = true;
+        }
 
         /// <summary>Skips the title (tests, or anything that starts play programmatically).</summary>
         public static void SkipThisLaunch() => shownThisLaunch = true;
@@ -139,9 +156,7 @@ namespace HunterAwakening
                     $"Start over? Your Hunter's progress ({session.Progression.TrainingSessions} sessions) will be deleted.", HudGui.Wrap);
                 if (GUI.Button(new Rect(box.x + 16, box.y + 58, 200, 32), "Yes, start over", HudGui.DangerButton))
                 {
-                    shownThisLaunch = true;
-                    creatorPending = true; // the reloaded scene opens on "Who are you?"
-                    session.DeleteSaveAndRestart();
+                    session.DeleteSaveAndRestart(); // reopens on "Who are you?"
                 }
                 if (GUI.Button(new Rect(box.x + 228, box.y + 58, 136, 32), "Cancel")) confirmNewGame = false;
             }
