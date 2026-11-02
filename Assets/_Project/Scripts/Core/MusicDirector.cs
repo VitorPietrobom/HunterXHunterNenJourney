@@ -4,14 +4,18 @@ using UnityEngine;
 namespace HunterAwakening
 {
     /// <summary>
-    /// The soundtrack follows the moment: calm music while exploring and training, fight music once anything turns on
-    /// the player (arena matches included), the heaviest tracks when the King rises. Each mood keeps its own player, so
+    /// The soundtrack follows the moment: the main theme on the title screen, calm music while exploring and training,
+    /// a dread-filled palace theme inside the King's castle, fight music once anything turns on the player (arena
+    /// matches included), and the King's own themes when he rises. Each mood keeps its own player, so
     /// leaving a fight crossfades back into the calm track where it left off. Tracks come from Resources/Music/&lt;Mood&gt;/
     /// (made locally by Audio/split_soundtrack.py.txt); a mood with no tracks stays silent.
     /// </summary>
     public class MusicDirector : MonoBehaviour
     {
-        public enum Mood { Calm, Fight, Boss }
+        public enum Mood { Title, Calm, Castle, Fight, Boss }
+
+        // How close to the castle's heart its own music takes over (the walls are 17 m from the centre).
+        const float CastleRadius = 26f;
 
         const float FadeIn = 1.2f;
         const float FadeOutOfFight = 3f;
@@ -28,7 +32,7 @@ namespace HunterAwakening
         }
 
         readonly Dictionary<Mood, Channel> channels = new Dictionary<Mood, Channel>();
-        Mood current = Mood.Calm;
+        Mood current = Mood.Title;
         float lastFight = float.NegativeInfinity;
 
         public Mood Current => current;
@@ -62,9 +66,11 @@ namespace HunterAwakening
         void Update()
         {
             var target = Wanted();
-            if (target != Mood.Calm) lastFight = Time.unscaledTime;
-            // Fights take over at once; calm returns only after a breather.
-            if (target != current && (target != Mood.Calm || Time.unscaledTime - lastFight >= CalmDelay))
+            if (channels[target].playlist.Count == 0) target = target == Mood.Boss ? Mood.Fight : Mood.Calm;
+            bool fighting = target == Mood.Fight || target == Mood.Boss;
+            if (fighting) lastFight = Time.unscaledTime;
+            // Fights take over at once; the quieter moods return only after a breather.
+            if (target != current && (fighting || Time.unscaledTime - lastFight >= CalmDelay))
                 current = target;
 
             var session = GameSession.Instance;
@@ -98,11 +104,22 @@ namespace HunterAwakening
         static Mood Wanted()
         {
             var session = GameSession.Instance;
-            if (session == null || session.TitleOpen) return Mood.Calm;
+            if (session == null || session.TitleOpen) return Mood.Title;
+            Encounter castle = null;
             foreach (var e in Encounter.All)
-                if (e.IsBoss && e.Engaged) return Mood.Boss;
+            {
+                if (!e.IsBoss) continue;
+                if (e.Engaged) return Mood.Boss;
+                castle = e;
+            }
             foreach (var e in EnemyController.All)
                 if (e.IsActive) return Mood.Fight;
+            if (castle != null && !castle.Cleared && session.Player != null)
+            {
+                Vector3 d = session.Player.transform.position - castle.transform.position;
+                d.y = 0f;
+                if (d.magnitude < CastleRadius) return Mood.Castle;
+            }
             return Mood.Calm;
         }
     }

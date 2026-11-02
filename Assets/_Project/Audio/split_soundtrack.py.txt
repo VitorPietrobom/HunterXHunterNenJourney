@@ -1,39 +1,102 @@
 """Split the Hunter x Hunter (2011) OST compilation into game music, sorted by mood.
 
-The compilation is one 80-minute MP3. Tracks were found by silence detection (ffmpeg silencedetect, -40 dB, 1.2 s)
-and sorted by measured energy: integrated loudness (EBU R128), high-frequency (>2.5 kHz) and low-frequency (<150 Hz)
-level. Calm = quiet and soft, for exploring and training; Fight = loud and bright; Boss = the loudest, heaviest tracks.
-Stingers and near-silent tracks are left out.
+The compilation is one 80-minute MP3 with the tracklist below. Each track is cut from its start to the silence
+before the next one (ffmpeg silencedetect, -40 dB, 1.2 s), faded at both ends, and filed by mood:
+  Title  — the title screen
+  Calm   — exploring and training
+  Fight  — anything turned on the player (ant camps, the arena)
+  Castle — inside the King's castle before he rises
+  Boss   — Meruem
+Tracks marked None are left out (too sad or too quiet for gameplay).
 
 The music is copyrighted, so the output folder (Resources/Music) is ignored by git: each machine makes its own copy.
 
-Usage: python split_soundtrack.py.txt "path/to/Hunter X Hunter 2011 - OST Compilation.mp3"
+Usage: python split_soundtrack.py.txt "path/to/Hunter X Hunter 2011 - OST Compilation.mp3" [output folder]
 """
 import os
+import re
+import shutil
 import subprocess
 import sys
 
 SRC = sys.argv[1]
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Resources", "Music")
+OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Resources", "Music")
 
-# (start s, end s) of each track in the compilation, by mood.
-MOODS = {
-    "Calm": [(736.96, 852.40), (978.80, 1106.81), (1112.66, 1223.05), (1483.60, 1568.92), (1969.35, 2096.83),
-             (2194.46, 2266.37), (3354.52, 3477.88), (3649.36, 3725.72), (3729.62, 3811.68), (3892.54, 3999.54),
-             (4448.42, 4618.51), (4624.58, 4832.70)],
-    "Fight": [(0.00, 156.03), (160.98, 284.50), (288.46, 372.51), (857.04, 975.27), (1862.70, 1963.05),
-              (2572.84, 2711.98), (3041.35, 3149.77), (3484.05, 3556.38), (4088.40, 4278.13)],
-    "Boss": [(1362.24, 1475.53), (1671.43, 1855.65), (469.71, 611.85)],
-}
+TRACKS = [
+    ("00:00", "The World of Adventurers", "Title"),
+    ("02:40", "Ginpatsu no Shounen", "Calm"),
+    ("04:48", "Hiiro no Hitomi no Aika", "Calm"),
+    ("06:17", "All I Need Is MONEY", None),
+    ("07:49", "Koukai", "Calm"),
+    ("10:15", "Tomodachi ni Narouyo", "Calm"),
+    ("11:09", "Kijutsu Shi no Baire", "Fight"),
+    ("12:16", "Kyoushuu", "Calm"),
+    ("14:16", "Kujiratou Yori", "Calm"),
+    ("16:18", "Ginpatsu no Lullaby", "Calm"),
+    ("18:32", "Nakama to Iu Koko", "Calm"),
+    ("20:28", "Requiem Aranea", "Fight"),
+    ("22:42", "Kusari Yarou", "Fight"),
+    ("24:43", "Latent Power", "Calm"),
+    ("26:14", "No no Haru", "Calm"),
+    ("27:51", "Try Your Luck", "Fight"),
+    ("29:52", "Kinpatsu no Gankou", None),
+    ("31:02", "Take a Walk", "Calm"),
+    ("32:49", "Dr Warm-Hearted Miser", None),
+    ("35:03", "Auras", "Calm"),
+    ("36:34", "Dirge from Dark Side", "Castle"),
+    ("37:53", "Departure for Strings", "Calm"),
+    ("39:36", "To Give a Marionette Life", None),
+    ("41:08", "Shooting Star Kirari (Orchestra)", "Calm"),
+    ("42:52", "REASON (Instrumental)", "Calm"),
+    ("45:15", "Kingdom Of Predators", "Fight"),
+    ("48:14", "Elegy Of The Dynast", "Boss"),
+    ("50:41", "Riot", "Fight"),
+    ("52:35", "In The Palace (Lamentoso)", "Castle"),
+    ("54:39", "Nowhere To Escape", "Fight"),
+    ("55:53", "New Mutation", "Fight"),
+    ("58:04", "Legend Of The Martial Artist", "Boss"),
+    ("59:21", "In The Palace (Agitato)", "Boss"),
+    ("01:00:49", "Scariness", None),
+    ("01:02:09", "Concentration", "Calm"),
+    ("01:03:39", "Victims", None),
+    ("01:04:46", "Understanding", None),
+    ("01:06:49", "Hashire", "Fight"),
+    ("01:08:08", "The Last Mission", "Boss"),
+    ("01:11:24", "Restriction And Pledge", "Fight"),
+    ("01:14:02", "Invaders", "Fight"),
+    ("01:17:04", "Hyouri Ittai (Lamento for Piano)", None),
+]
 
-for mood, tracks in MOODS.items():
+
+def seconds(stamp):
+    total = 0
+    for part in stamp.split(":"):
+        total = total * 60 + int(part)
+    return total
+
+
+probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", SRC],
+                       capture_output=True, text=True, check=True)
+duration = float(probe.stdout.strip())
+detect = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", SRC, "-af", "silencedetect=noise=-40dB:d=1.2", "-f", "null", "-"],
+                        capture_output=True, text=True).stderr
+silences = [float(s) for s in re.findall(r"silence_start: ([0-9.]+)", detect)]
+
+if os.path.isdir(OUT):
+    shutil.rmtree(OUT)
+for i, (stamp, name, mood) in enumerate(TRACKS):
+    if mood is None:
+        continue
+    start = seconds(stamp)
+    following = seconds(TRACKS[i + 1][0]) if i + 1 < len(TRACKS) else duration
+    # End at the last silence before the next track starts, so tracks don't carry dead air.
+    gaps = [s for s in silences if start + 20 < s < following]
+    end = gaps[-1] if gaps else following
     folder = os.path.join(OUT, mood)
     os.makedirs(folder, exist_ok=True)
-    for i, (start, end) in enumerate(tracks):
-        path = os.path.join(folder, f"{mood}{i + 1:02d}.ogg")
-        # A short fade at each end so loops and crossfades never click.
-        fade_out = max(0.0, end - start - 1.5)
-        subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-ss", str(start), "-to", str(end), "-i", SRC,
-                        "-af", f"afade=t=in:d=0.8,afade=t=out:st={fade_out}:d=1.5", "-c:a", "libvorbis", "-q:a", "4", path],
-                       check=True)
-        print(path)
+    path = os.path.join(folder, re.sub(r"[^A-Za-z0-9 ()-]", "", name) + ".ogg")
+    fade_out = max(0.0, end - start - 1.5)
+    subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-ss", str(start), "-to", str(end), "-i", SRC,
+                    "-af", f"afade=t=in:d=0.8,afade=t=out:st={fade_out}:d=1.5", "-c:a", "libvorbis", "-q:a", "4", path],
+                   check=True)
+    print(f"{mood:6} {end - start:6.1f}s  {name}")
