@@ -18,6 +18,7 @@ namespace HunterAwakening
         public static bool CameraShake { get; private set; } = true;
         public static bool HitStop { get; private set; } = true;
         public static float SfxVolume { get; private set; } = 0.8f;
+        public static float MusicVolume { get; private set; } = 0.7f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Load()
@@ -30,10 +31,11 @@ namespace HunterAwakening
             CameraShake = PlayerPrefs.GetInt("ha.shake", 1) == 1;
             HitStop = PlayerPrefs.GetInt("ha.hitstop", 1) == 1;
             SfxVolume = Mathf.Clamp01(PlayerPrefs.GetFloat("ha.sfx", 0.8f));
+            MusicVolume = Mathf.Clamp01(PlayerPrefs.GetFloat("ha.music", 0.7f));
             Apply();
         }
 
-        public static void Set(float sensitivity, bool invertY, int fpsCap, bool vsync, bool showFps, bool shake, bool hitStop, float sfxVolume)
+        public static void Set(float sensitivity, bool invertY, int fpsCap, bool vsync, bool showFps, bool shake, bool hitStop, float sfxVolume, float musicVolume)
         {
             MouseSensitivity = Mathf.Clamp(sensitivity, 0.2f, 3f);
             InvertY = invertY;
@@ -43,6 +45,7 @@ namespace HunterAwakening
             CameraShake = shake;
             HitStop = hitStop;
             SfxVolume = Mathf.Clamp01(sfxVolume);
+            MusicVolume = Mathf.Clamp01(musicVolume);
             PlayerPrefs.SetFloat("ha.sensitivity", MouseSensitivity);
             PlayerPrefs.SetInt("ha.invertY", InvertY ? 1 : 0);
             PlayerPrefs.SetInt("ha.fpsCap", FrameRateCap);
@@ -51,6 +54,7 @@ namespace HunterAwakening
             PlayerPrefs.SetInt("ha.shake", CameraShake ? 1 : 0);
             PlayerPrefs.SetInt("ha.hitstop", HitStop ? 1 : 0);
             PlayerPrefs.SetFloat("ha.sfx", SfxVolume);
+            PlayerPrefs.SetFloat("ha.music", MusicVolume);
             PlayerPrefs.Save();
             Apply();
         }

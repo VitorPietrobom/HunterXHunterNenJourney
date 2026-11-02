@@ -69,6 +69,7 @@ namespace HunterAwakening
             if (GetComponent<ImpactEffects>() == null) gameObject.AddComponent<ImpactEffects>();
             if (GetComponent<DamageNumbers>() == null) gameObject.AddComponent<DamageNumbers>();
             if (GetComponent<TitleScreen>() == null) gameObject.AddComponent<TitleScreen>();
+            if (GetComponent<MusicDirector>() == null) gameObject.AddComponent<MusicDirector>();
             Progression.Notice += text => PushNotice(text, 5f);
         }
 

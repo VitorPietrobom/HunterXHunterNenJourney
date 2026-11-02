@@ -87,6 +87,7 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 - [x] ⚠️ **Hit feedback**: hit-stop, camera shake, slow motion on parries/perfect dodges/ambushes/knockouts (toggleable).
 - [x] ⚠️ **Floating damage numbers** (white plain, orange Ren/guard break, gold Rock/Ko, grey blocked, red taken; PARRY/DODGE callouts) and a **white impact flash** on struck fighters.
 - [x] ⚠️ **Rival auras**: each opponent has its own colour (Killua white-blue, Kurapika blue, Hisoka pink, Meruem violet) sized by presence — a calm shroud in fights that flares into Ren on every wind-up (with a sound), a second attack cue.
+- [x] ⚠️ **Soundtrack** (`MusicDirector`): calm tracks while exploring/training, fight tracks the moment anything turns on you (5 s before calming down), the heaviest tracks for the King; each mood shuffles its own playlist and the calm track resumes where it left off. Ducked under menus; Music slider in the pause menu. Tracks are the HxH 2011 OST split by `Audio/split_soundtrack.py.txt` (sorted by measured loudness/brightness — *re-sort by ear*). **Copyrighted: `Resources/Music` is git-ignored**, so each machine runs the script on its own copy; builds include it.
 - [x] ⚠️ **Sounds** for raising Ren, the Jajanken chant beats, Rock's release and rival wind-up flares (synthesised).
 - [x] ⚠️ **Impact VFX and sounds**: spark bursts and code-synthesised sounds (thud, crack, clang, block, whoosh, Ko boom); volume in the pause menu. *Placeholder quality — replace with real assets later.*
 

@@ -7,7 +7,7 @@ namespace HunterAwakening
     {
         const float LabelWidth = 170f;
 
-        float sensitivity, sfxVolume;
+        float sensitivity, sfxVolume, musicVolume;
         bool invertY, vsync, showFps, shake, hitStop;
         int fpsIndex;
         bool loaded;
@@ -22,6 +22,7 @@ namespace HunterAwakening
             shake = GameSettings.CameraShake;
             hitStop = GameSettings.HitStop;
             sfxVolume = GameSettings.SfxVolume;
+            musicVolume = GameSettings.MusicVolume;
             fpsIndex = System.Array.IndexOf(GameSettings.FrameRateOptions, GameSettings.FrameRateCap);
             if (fpsIndex < 0) fpsIndex = System.Array.IndexOf(GameSettings.FrameRateOptions, FrameRateSettings.TargetFrameRate);
             loaded = true;
@@ -33,7 +34,7 @@ namespace HunterAwakening
             if (!loaded) Open();
             HudGui.Use();
             HudGui.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0.01f, 0.02f, 0.04f, 0.62f));
-            float w = Mathf.Min(520f, Screen.width - 40f), h = Mathf.Min(confirmReset ? 660f : 620f, Screen.height - 40f);
+            float w = Mathf.Min(520f, Screen.width - 40f), h = Mathf.Min(confirmReset ? 700f : 660f, Screen.height - 40f);
             var area = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
             HudGui.Panel(area);
 
@@ -75,14 +76,20 @@ namespace HunterAwakening
                 sfxVolume = GUILayout.HorizontalSlider(sfxVolume, 0f, 1f);
                 GUILayout.Label(HudGui.Pct(sfxVolume), HudGui.Label, GUILayout.Width(52));
             });
+            Row("Music", () =>
+            {
+                musicVolume = GUILayout.HorizontalSlider(musicVolume, 0f, 1f);
+                GUILayout.Label(HudGui.Pct(musicVolume), HudGui.Label, GUILayout.Width(52));
+            });
 
             // OnGUI runs several times a frame: only persist when something actually changed.
             int fpsCap = GameSettings.FrameRateOptions[fpsIndex];
             bool changed = !Mathf.Approximately(sensitivity, GameSettings.MouseSensitivity) || invertY != GameSettings.InvertY
                            || fpsCap != GameSettings.FrameRateCap || vsync != GameSettings.VSync || showFps != GameSettings.ShowFps
                            || shake != GameSettings.CameraShake || hitStop != GameSettings.HitStop
-                           || !Mathf.Approximately(sfxVolume, GameSettings.SfxVolume);
-            if (changed) GameSettings.Set(sensitivity, invertY, fpsCap, vsync, showFps, shake, hitStop, sfxVolume);
+                           || !Mathf.Approximately(sfxVolume, GameSettings.SfxVolume)
+                           || !Mathf.Approximately(musicVolume, GameSettings.MusicVolume);
+            if (changed) GameSettings.Set(sensitivity, invertY, fpsCap, vsync, showFps, shake, hitStop, sfxVolume, musicVolume);
 
             GUILayout.FlexibleSpace();
             GUILayout.BeginHorizontal();

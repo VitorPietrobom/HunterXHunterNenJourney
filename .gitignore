@@ -112,3 +112,7 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Soundtrack: copyrighted music, made locally by Assets/_Project/Audio/split_soundtrack.py.txt (never commit it)
+/[Aa]ssets/_Project/Resources/Music/
+/[Aa]ssets/_Project/Resources/Music.meta
