@@ -66,7 +66,8 @@ namespace HunterAwakening
             sinceDamaged += Time.deltaTime;
             if (Combat.Tracker == null && sinceDamaged >= RegenDelay && !Health.IsDead)
                 Health.Heal(RegenPerSecond * Time.deltaTime
-                            * (GameSession.Instance.Progression.KnowsInsight(WaterDivination.EnhancerInsight) ? StatEffects.EnhancerRegenMultiplier : 1f));
+                            * (GameSession.Instance.Progression.KnowsInsight(WaterDivination.EnhancerInsight)
+                               && GameSession.Instance.Progression.Hunter.nenType == NenType.Enhancer ? StatEffects.EnhancerRegenMultiplier : 1f));
         }
 
         void OnDestroy()

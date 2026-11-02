@@ -128,6 +128,7 @@ namespace HunterAwakening.EditorTools
                 SetRef(animation, "animator", model.GetComponent<Animator>());
                 SetFloat(animation, "runClipSpeed", PlayerModelSetup.ClipSpeed("Run", 5.58f));
                 SetFloat(animation, "sprintClipSpeed", PlayerModelSetup.ClipSpeed("Sprint", 5.05f));
+                AttachPlayerBodies(player, cc, model, playerCharacter);
             }
             else Prim(PrimitiveType.Cube, "Visor", player.transform, new Vector3(0f, 0.5f, 0.35f), new Vector3(0.6f, 0.2f, 0.3f), m.Dark, false);
             var auraLightGo = new GameObject("AuraLight");
@@ -145,6 +146,7 @@ namespace HunterAwakening.EditorTools
             var aura = player.AddComponent<AuraController>();
             player.AddComponent<PlayerInteractor>();
             var context = player.AddComponent<PlayerContext>();
+            player.AddComponent<HatsuRuntime>();
             SetRef(aura, "auraLight", auraLight);
 
             // Camera
@@ -574,6 +576,27 @@ namespace HunterAwakening.EditorTools
                 return AttachModel(player, controller, RivalModelSetup.ModelPath(PlayerCharacter), avatar, PlayerCharacterHeight, "Model");
             character = "Killua";
             return AttachCharacterModel(player, controller);
+        }
+
+        /// <summary>The bodies a created Hunter can choose: the player's own model plus the other rigged characters.</summary>
+        static readonly (string name, float height)[] PlayerBodyOptions = { ("Killua", 2f), ("Kurapika", 2.2f), ("Kite", 2.3f) };
+
+        static void AttachPlayerBodies(GameObject player, CharacterController controller, GameObject main, string mainName)
+        {
+            var entries = new List<PlayerBodies.Entry> { new PlayerBodies.Entry { name = mainName, model = main.GetComponent<Animator>() } };
+            foreach (var (name, height) in PlayerBodyOptions)
+            {
+                var avatar = RivalModelSetup.Configure(name);
+                if (avatar == null) continue;
+                var model = AttachModel(player, controller, RivalModelSetup.ModelPath(name), avatar, height, "Body " + name);
+                if (model == null) continue;
+                ToonMaterials.Apply(model, name);
+                model.SetActive(false);
+                entries.Add(new PlayerBodies.Entry { name = name, model = model.GetComponent<Animator>() });
+            }
+            var bodies = player.AddComponent<PlayerBodies>();
+            bodies.Configure(entries.ToArray());
+            EditorUtility.SetDirty(bodies);
         }
 
         /// <summary>Adds the animated Killua model under a CharacterController host. Returns null if the model is unavailable.</summary>

@@ -31,7 +31,13 @@ namespace HunterAwakening
         public PlayerContext Player => player;
         public bool DashboardOpen { get; set; }
         /// <summary>The dashboard shows the Hunter's Guide instead of progression (the notice board opens it there).</summary>
-        public bool GuidePage { get; set; }
+        public bool GuidePage
+        {
+            get => Page == DashboardPage.Guide;
+            set => Page = value ? DashboardPage.Guide : DashboardPage.Progression;
+        }
+        public enum DashboardPage { Progression, Guide, Hatsu }
+        public DashboardPage Page { get; set; }
 
         public void OpenGuide()
         {
@@ -104,7 +110,9 @@ namespace HunterAwakening
             notices.RemoveAll(n => Time.unscaledTime > n.expires);
 
             var input = player != null ? player.Input : null;
-            if (input != null && !TitleOpen && !DialogueBox.IsOpen && !EndingOpen)
+            // Typing in a text field (the Hatsu editor, a name) mustn't trigger the hotkeys.
+            bool typing = GUIUtility.keyboardControl != 0;
+            if (input != null && !TitleOpen && !DialogueBox.IsOpen && !EndingOpen && !typing)
             {
                 if (input.PausePressed) SetPaused(!Paused);
                 if (input.DashboardPressed && !Paused) DashboardOpen = !DashboardOpen;

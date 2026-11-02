@@ -21,6 +21,7 @@ namespace HunterAwakening
         [SerializeField] float iFrameEnd = 0.2f;
 
         CharacterController controller;
+        HatsuRuntime hatsu;
         InputReader input;
         PlayerVitals vitals;
         PlayerCombat combat;
@@ -70,6 +71,7 @@ namespace HunterAwakening
 
         void Awake()
         {
+            hatsu = GetComponent<HatsuRuntime>();
             controller = GetComponent<CharacterController>();
             input = GetComponent<InputReader>();
             vitals = GetComponent<PlayerVitals>();
@@ -97,7 +99,7 @@ namespace HunterAwakening
 
             double speedStat = p.GetAttribute(AttributeId.Speed);
             double endurance = p.GetAttribute(AttributeId.Endurance);
-            float performance = p.Fatigue.PerformanceMultiplier * (aura != null ? aura.SpeedMultiplier : 1f) * p.StrainPenalty(BodyArea.Lower);
+            float performance = p.Fatigue.PerformanceMultiplier * (aura != null ? aura.SpeedMultiplier : 1f) * (hatsu != null ? hatsu.SpeedMultiplier : 1f) * p.StrainPenalty(BodyArea.Lower);
 
             bool wantsSprint = input.SprintHeld && IsMoving && !blocked && !vitals.IsExhausted
                                && (combat == null || (!combat.IsBlocking && !combat.IsAttacking));

@@ -64,6 +64,51 @@ namespace HunterAwakening
                 "There's always a stronger opponent somewhere. But today, you're a real Hunter. Ging would be proud. I am too."),
         };
 
+        /// <summary>A created Hunter hears these instead ({name}, {type} and {hatsu} are filled in).</summary>
+        static readonly System.Collections.Generic.Dictionary<string, string[]> CustomLines = new System.Collections.Generic.Dictionary<string, string[]>
+        {
+            ["intro"] = new[]
+            {
+                "You must be {name}. I'm Kite — a Hunter, and right now, a worried one.",
+                "There are Chimera Ants in these woods. Big ones. And something behind them that worries me a lot more.",
+                "You're not ready to face them. Not yet. A Hunter's strength starts with the body: the lift, the sprints, the pads over there. Finish three proper sessions.",
+                "Then sit at the Meditation Stone and feel what's been leaking out of you all your life. That's aura. If you forget anything, the board behind me has it all written down.",
+            },
+            ["enhancer"] = new[]
+            {
+                "So you're a{an} {type}. I had a feeling. The water never lies.",
+                "Your type is the direction your aura wants to flow. Train with it, not against it, and your Hatsu will grow from it.",
+                "Then prove it in the arena. Beat the Sparring Rival. A real fight teaches what drills can't — watch for the red wind-up, dodge or parry it, and punish the opening.",
+            },
+            ["jajanken"] = new[]
+            {
+                "{hatsu}… I've never seen anything like it. It's yours — no one else could have made it.",
+                "And if it isn't quite right yet, change it. A Hatsu grows with its user. You'll find it in your notes: Tab, then Hatsu.",
+            },
+            ["king"] = new[]
+            {
+                "You actually did it. The King…",
+                "When I first met you, I thought you'd need years. You needed something else — the stubbornness to keep getting up.",
+                "There's always a stronger opponent somewhere. But today, you're a real Hunter, {name}. I'm proud of you.",
+            },
+            ["returning"] = new[]
+            {
+                "You must be {name}. I'm Kite — I've been watching you train for a while now.",
+                "You've come a long way on your own. There are Chimera Ants in these woods, and something behind them that worries me. I could use someone like you.",
+                "Come talk to me whenever you need a push in the right direction. And the board behind me has everything you've learned written down.",
+            },
+        };
+
+        string[] Lines(string id, string[] gon)
+        {
+            var p = Progression;
+            if (!p.IsCustomHunter || !CustomLines.TryGetValue(id, out var lines)) return gon;
+            var h = p.Hunter;
+            string an = h.nenType == NenType.Enhancer ? "n" : "";
+            return System.Array.ConvertAll(lines, l => l.Replace("{name}", h.name).Replace("{type}", h.nenType.ToString())
+                .Replace("{an}", an).Replace("{hatsu}", h.hatsuName));
+        }
+
         [SerializeField] Animator animator;
         Quaternion restRotation;
         bool greeted;
@@ -127,16 +172,16 @@ namespace HunterAwakening
                 // An old save meeting Kite for the first time: skip the beginner's speech and the beats already lived.
                 foreach (var b in Beats)
                     if (b.ready(p)) p.MarkStory(b.id);
-                DialogueBox.Play(Name, new[]
+                DialogueBox.Play(Name, Lines("returning", new[]
                 {
                     "So you're Gon. Ging's kid. I'm Kite — I've been watching you train for a while now.",
                     "You've come a long way on your own. There are Chimera Ants in these woods, and something behind them that worries me. I could use someone like you.",
                     "Come talk to me whenever you need a push in the right direction. And the board behind me has everything you've learned written down.",
-                });
+                }));
                 return;
             }
             p.MarkStory(beat.Value.id);
-            DialogueBox.Play(Name, beat.Value.lines);
+            DialogueBox.Play(Name, Lines(beat.Value.id, beat.Value.lines));
         }
 
         static string Advice(ProgressionService p) =>

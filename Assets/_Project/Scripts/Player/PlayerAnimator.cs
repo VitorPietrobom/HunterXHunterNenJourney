@@ -52,6 +52,15 @@ namespace HunterAwakening
         /// <summary>The model's Humanoid Animator (for attaching props such as the barbell to bones).</summary>
         public Animator Animator => animator;
 
+        /// <summary>Drives another model (a created Hunter's body). All bodies share the controller and clips.</summary>
+        public void UseModel(Animator model)
+        {
+            if (model == null || model == animator) return;
+            animator = model;
+            animator.applyRootMotion = false;
+            hasState = false;
+        }
+
         static int[] BuildHashes()
         {
             var names = System.Enum.GetNames(typeof(State));

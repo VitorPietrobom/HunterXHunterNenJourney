@@ -156,6 +156,7 @@ namespace HunterAwakening
 
         void Awake()
         {
+            hatsu = GetComponent<HatsuRuntime>();
             input = GetComponent<InputReader>();
             motor = GetComponent<PlayerMotor>();
             vitals = GetComponent<PlayerVitals>();
@@ -202,7 +203,7 @@ namespace HunterAwakening
                 if (input.LightPressed) Begin(lightAttack);
                 else if (input.HeavyPressed) Begin(heavyAttack);
                 else if (input.KoPressed) TryKo();
-                else if (input.HatsuPressed) TryChant();
+                else if (input.HatsuPressed && !P.IsCustomHunter) TryChant(); // a created Hunter's Hatsu runs in HatsuRuntime
             }
 
             if (IsAttacking) AdvancePhase(Time.deltaTime);
@@ -430,7 +431,8 @@ namespace HunterAwakening
                                               * (scissors ? StatEffects.JajankenScissorsFactor : 1f) : 1f)
                            * StatEffects.ComboDamageMultiplier(comboStep, comboFinisher)
                            * StatEffects.HunterLevelDamageFactor(P.HunterLevel)
-                           * (aura.RenActive || currentIsKo || currentIsRock ? EnhancerFactor : 1f);
+                           * (aura.RenActive || currentIsKo || currentIsRock ? EnhancerFactor : 1f)
+                           * (hatsu != null ? hatsu.DamageMultiplier : 1f);
 
             var hit = new HitInfo { damage = damage, technique = current.technique, heavy = current.heavy, ren = aura.RenActive || currentIsKo || currentIsRock, ambush = ambush };
             if (ambush)
@@ -585,6 +587,7 @@ namespace HunterAwakening
             bool renWasActive = aura.RenActive;
             bool kenWasActive = aura.KenActive;
             damage *= aura.IncomingMultiplier;
+            if (hatsu != null) damage *= hatsu.DefenseMultiplier;
             if (IsKoStrike) damage *= StatEffects.KoDamageTakenMultiplier; // every drop of aura is in the fist
             if (tenWasActive) P.ApplyMastery(TechniqueId.Ten, 0.5f);
             if (kenWasActive) P.ApplyMastery(TechniqueId.Ken, 0.5f);
@@ -653,7 +656,9 @@ namespace HunterAwakening
         }
 
         /// <summary>An Enhancer (found by Water Divination) hits harder with every aura-powered strike.</summary>
-        float EnhancerFactor => P.KnowsInsight(WaterDivination.EnhancerInsight) ? StatEffects.EnhancerStrikeMultiplier : 1f;
+        HatsuRuntime hatsu;
+
+        float EnhancerFactor => P.KnowsInsight(WaterDivination.EnhancerInsight) && P.Hunter.nenType == NenType.Enhancer ? StatEffects.EnhancerStrikeMultiplier : 1f;
 
         // ------------------------------------------------------------------ Area hits
 

@@ -13,6 +13,7 @@ namespace HunterAwakening
         [SerializeField] float labelRange = 60f;
 
         readonly ProgressionDashboard dashboard = new ProgressionDashboard();
+        HatsuRuntime hatsu;
         readonly PauseMenu pauseMenu = new PauseMenu();
         bool pauseMenuOpen;
         float fpsTimer;
@@ -40,6 +41,7 @@ namespace HunterAwakening
             var session = GameSession.Instance;
             if (session == null || player == null || session.TitleOpen) return;
             if (worldCamera == null) worldCamera = Camera.main;
+            if (hatsu == null) hatsu = player.GetComponent<HatsuRuntime>();
             HudGui.Use();
 
             if (session.DashboardOpen)
@@ -52,6 +54,7 @@ namespace HunterAwakening
             DrawVitals(session);
             DrawObjective(session);
             DrawChant();
+            DrawHatsu();
             if (!DialogueBox.IsOpen)
             {
                 DrawPrompt();
@@ -153,7 +156,8 @@ namespace HunterAwakening
             HudGui.Panel(new Rect(x - 8, y - 8, w + 16, height));
 
             // Name, and chips for whatever the aura is doing right now.
-            GUI.Label(new Rect(x, y - 2, 120, 24), "<b>GON</b>  <size=11><color=#9aa4b2>Hunter</color></size>", HudGui.Label);
+            string who = p.Hunter.name.ToUpperInvariant();
+            GUI.Label(new Rect(x, y - 2, 200, 24), $"<b>{who}</b>  <size=11><color=#9aa4b2>{(p.IsCustomHunter && p.KnowsInsight(WaterDivination.EnhancerInsight) ? p.Hunter.nenType.ToString() : "Hunter")}</color></size>", HudGui.Label);
             float chipX = x + w;
             void Chip(string text, Color color)
             {
@@ -204,7 +208,7 @@ namespace HunterAwakening
 
             string keys = "";
             if (a.CanKo || a.KoUnlocked) keys += "<color=#ffc552><b>F</b></color> Ko   ";
-            if (a.JajankenUnlocked) keys += "<color=#ffc552><b>V</b></color> Rock   ";
+            if (a.JajankenUnlocked) keys += $"<color=#ffc552><b>V</b></color> {(p.IsCustomHunter ? p.Hunter.hatsuName : "Rock")}   ";
             string strain = p.GetStrain(BodyArea.Upper) > 0.5f || p.GetStrain(BodyArea.Lower) > 0.5f
                 ? $"<color=#ff8866>strain {p.GetStrain(BodyArea.Upper):0}/{p.GetStrain(BodyArea.Lower):0}</color>   " : "";
             GUI.Label(new Rect(x, y, w, 18), $"<size=11>{keys}{strain}<color=#9aa4b2>Sessions {p.TrainingSessions} · <b>Tab</b> dashboard & guide · <b>F1</b> controls</color></size>", HudGui.Small);
@@ -241,7 +245,7 @@ namespace HunterAwakening
             if (!p.KnowsInsight(AuraController.KoInsight))
                 return $"Learn Ko: Ren mastery 40 and Max Output 18 from the Ren Circle (Ren {p.GetMastery(TechniqueId.Ren):0}, Max Output {p.GetAttribute(AttributeId.MaxOutput):0.0}).";
             if (!p.KnowsInsight(AuraController.JajankenInsight))
-                return $"Learn Jajanken: Ren mastery 50 (Ren {p.GetMastery(TechniqueId.Ren):0}) — keep fighting with Ren up and training at the Ren Circle.";
+                return $"Learn {(p.IsCustomHunter ? "your Hatsu, " + p.Hunter.hatsuName : "Jajanken")}: Ren mastery 50 (Ren {p.GetMastery(TechniqueId.Ren):0}) — keep fighting with Ren up and training at the Ren Circle.";
             if (p.BestSparringTime("elite") <= 0f)
                 return "Beat Killua (Godspeed), the arena's strongest sparring partner.";
             int left = 0;
@@ -253,6 +257,21 @@ namespace HunterAwakening
         }
 
         /// <summary>Jajanken: the chant's progress, centred low on screen while it builds.</summary>
+        /// <summary>A created Hunter's Hatsu: its charge while V is held, and its cooldown.</summary>
+        void DrawHatsu()
+        {
+            if (hatsu == null || !hatsu.Loaded) return;
+            const float w = 320f, h = 24f;
+            var r = new Rect((Screen.width - w) / 2f, Screen.height * 0.72f, w, h);
+            if (hatsu.IsCharging)
+            {
+                HudGui.Panel(new Rect(r.x - 6f, r.y - 6f, w + 12f, h + 12f));
+                HudGui.Bar(r, hatsu.Charge, GameSession.Instance.Progression.Hunter.auraColor, $"{hatsu.Info.name} — release V");
+            }
+            else if (hatsu.CooldownRemaining > 0f)
+                HudGui.ShadowLabel(new Rect(r.x, r.y, w, h), $"<size=12>{hatsu.Info.name} ready in {hatsu.CooldownRemaining:0.0}s</size>", HudGui.Center);
+        }
+
         void DrawChant()
         {
             var c = player.Combat;

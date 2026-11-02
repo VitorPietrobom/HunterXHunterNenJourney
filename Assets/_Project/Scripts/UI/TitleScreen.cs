@@ -9,6 +9,8 @@ namespace HunterAwakening
     public class TitleScreen : MonoBehaviour
     {
         static bool shownThisLaunch;
+        /// <summary>A new game was chosen: after the reload, go straight to the character choice.</summary>
+        static bool creatorPending;
         static Texture2D shade;
 
         GameSession session;
@@ -18,14 +20,31 @@ namespace HunterAwakening
         void Awake()
         {
             session = GetComponent<GameSession>();
-            if (shownThisLaunch || session == null)
+            if ((shownThisLaunch && !creatorPending) || session == null)
             {
                 enabled = false;
                 return;
             }
             session.TitleOpen = true;
             openedAt = Time.unscaledTime;
+            creator = GetComponent<CharacterCreator>();
+            if (creator == null) creator = gameObject.AddComponent<CharacterCreator>();
         }
+
+        CharacterCreator creator;
+
+        void Start()
+        {
+            if (!creatorPending) return;
+            creatorPending = false;
+            BeginNewHunter();
+        }
+
+        /// <summary>A fresh save: choose Gon or create a Hunter, then play.</summary>
+        void BeginNewHunter() => creator.Open(Dismiss);
+
+        bool FreshSave => session.Progression.TrainingSessions == 0 && !session.Progression.IsAuraAwakened
+                          && !session.Progression.HasHeardStory("chosen");
 
         /// <summary>Skips the title (tests, or anything that starts play programmatically).</summary>
         public static void SkipThisLaunch() => shownThisLaunch = true;
@@ -52,7 +71,20 @@ namespace HunterAwakening
         void OnGUI()
         {
             HudGui.Use();
+            if (creator != null && creator.IsOpen)
+            {
+                if (shade == null) shade = Shade();
+                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), shade, ScaleMode.StretchToFill);
+                return;
+            }
             var e = Event.current;
+            if (e.type == EventType.KeyDown && !confirmNewGame && FreshSave
+                && (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter || e.keyCode == KeyCode.Space))
+            {
+                BeginNewHunter();
+                e.Use();
+                return;
+            }
             if (e.type == EventType.KeyDown && !confirmNewGame
                 && (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter || e.keyCode == KeyCode.Space))
             {
@@ -87,7 +119,11 @@ namespace HunterAwakening
             bool hasSave = session.Progression.TrainingSessions > 0 || session.Progression.IsAuraAwakened;
             if (!confirmNewGame)
             {
-                if (GUI.Button(new Rect(cx - w / 2, y, w, 46), hasSave ? "Continue" : "Begin your training", HudGui.PrimaryButton)) Dismiss();
+                if (GUI.Button(new Rect(cx - w / 2, y, w, 46), hasSave ? "Continue" : "Begin your training", HudGui.PrimaryButton))
+                {
+                    if (FreshSave) BeginNewHunter();
+                    else Dismiss();
+                }
                 y += 54f;
                 if (hasSave && GUI.Button(new Rect(cx - w / 2, y, w, 40), "New game")) confirmNewGame = true;
                 if (hasSave) y += 48f;
@@ -103,7 +139,8 @@ namespace HunterAwakening
                     $"Start over? Your Hunter's progress ({session.Progression.TrainingSessions} sessions) will be deleted.", HudGui.Wrap);
                 if (GUI.Button(new Rect(box.x + 16, box.y + 58, 200, 32), "Yes, start over", HudGui.DangerButton))
                 {
-                    shownThisLaunch = true; // the reloaded scene goes straight into the new game
+                    shownThisLaunch = true;
+                    creatorPending = true; // the reloaded scene opens on "Who are you?"
                     session.DeleteSaveAndRestart();
                 }
                 if (GUI.Button(new Rect(box.x + 228, box.y + 58, 136, 32), "Cancel")) confirmNewGame = false;

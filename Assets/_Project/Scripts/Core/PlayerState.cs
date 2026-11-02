@@ -29,6 +29,31 @@ namespace HunterAwakening
         public double activeTime;
     }
 
+    public enum NenType { Enhancer, Transmuter, Emitter, Conjurer, Manipulator, Specialist }
+
+    /// <summary>
+    /// Who the player is: Gon, or a Hunter they created (name, body, height, aura colour), their Nen type and their
+    /// Hatsu — a Lua script (run sandboxed by HatsuRuntime) plus its name, description and vow. Saved with progress.
+    /// </summary>
+    [Serializable]
+    public class HunterProfile
+    {
+        public bool custom;
+        public string name = "Gon";
+        public string body = "Gon";
+        public float height = 1f;
+        public Color auraColor = new Color(1f, 0.55f, 0.15f);
+        public NenType nenType = NenType.Enhancer;
+        public string hatsuName = "Jajanken";
+        public string hatsuDescription = "";
+        public string hatsuVow = "";
+        /// <summary>The Hatsu's Lua source (empty for Gon, who uses Jajanken).</summary>
+        public string hatsuSource = "";
+        /// <summary>The source the interview generated, so edits can be undone.</summary>
+        public string generatedSource = "";
+        public List<string> interviewAnswers = new List<string>();
+    }
+
     /// <summary>
     /// Canonical, serializable player progress. Only <see cref="ProgressionService"/> should write to it.
     /// </summary>
@@ -50,6 +75,8 @@ namespace HunterAwakening
         public List<string> knowledge = new List<string>();
         /// <summary>Field encounters (ant squads, the King) beaten for good.</summary>
         public List<string> clearedEncounters = new List<string>();
+        /// <summary>Gon by default; a created Hunter otherwise.</summary>
+        public HunterProfile hunter = new HunterProfile();
         /// <summary>Hunter experience from beating opponents (Hunter Level is derived from it).</summary>
         public double hunterXp;
         public int trainingSessions;
@@ -105,6 +132,10 @@ namespace HunterAwakening
             history ??= new List<HistoryEntry>();
             knowledge ??= new List<string>();
             clearedEncounters ??= new List<string>();
+            hunter ??= new HunterProfile();
+            hunter.interviewAnswers ??= new List<string>();
+            if (string.IsNullOrWhiteSpace(hunter.name)) hunter.name = "Gon";
+            hunter.height = Mathf.Clamp(hunter.height <= 0f ? 1f : hunter.height, 0.85f, 1.2f);
 
             attributes.RemoveAll(a => a == null || !Enum.IsDefined(typeof(AttributeId), a.id));
             mastery.RemoveAll(m => m == null || !Enum.IsDefined(typeof(TechniqueId), m.id));

@@ -14,13 +14,17 @@ namespace HunterAwakening
         {
             public readonly string title, body, locked;
             public readonly Func<ProgressionService, bool> known;
+            /// <summary>For entries about this Hunter (their type, their Hatsu): the text is written when shown.</summary>
+            public readonly Func<ProgressionService, string> live;
 
-            public Entry(string title, string body, Func<ProgressionService, bool> known = null, string locked = null)
+            public Entry(string title, string body, Func<ProgressionService, bool> known = null, string locked = null,
+                Func<ProgressionService, string> live = null)
             {
                 this.title = title;
                 this.body = body;
                 this.known = known;
                 this.locked = locked;
+                this.live = live;
             }
         }
 
@@ -105,10 +109,12 @@ namespace HunterAwakening
                 new Entry("The test",
                     "A glass filled to the brim, a leaf floating on top. Cup your hands around it and use Ren: what happens to the water " +
                     "tells you your Nen type. The glass stands beside the Meditation Stone (E, then hold R)."),
-                new Entry("Your type: Enhancer",
-                    "The water rose and spilled over. Like Gon, you strengthen what you already have: aura-powered strikes (Ren, Ko, " +
-                    "Jajanken) hit 10% harder, and your body heals 50% faster out of combat.",
-                    Enhancer, "Take the Water Divination test."),
+                new Entry("Your type",
+                    "", Enhancer, "Take the Water Divination test.",
+                    p => p.Hunter.nenType == NenType.Enhancer
+                        ? "The water rose and spilled over: an Enhancer. You strengthen what you already have: aura-powered strikes (Ren, Ko, " +
+                          "your Hatsu) hit 10% harder, and your body heals 50% faster out of combat."
+                        : $"{HatsuLibrary.Divination(p.Hunter.nenType)} You are a {p.Hunter.nenType}, and your Hatsu draws on it: +15% power."),
                 new Entry("The six types",
                     "<b>Enhancer</b> — the water's volume grows. Strengthens body and objects.\n" +
                     "<b>Transmuter</b> — the water's taste changes. Gives aura properties (electricity, elasticity).\n" +
@@ -117,6 +123,14 @@ namespace HunterAwakening
                     "<b>Manipulator</b> — the leaf moves. Controls things and living beings.\n" +
                     "<b>Specialist</b> — anything else. Abilities that fit no other type.")),
 
+            new Chapter("Your Hatsu",
+                new Entry("The ability", "", p => p.IsCustomHunter, "Gon's Hatsu is Jajanken (next chapter). A created Hunter's is written by Kite's interview.",
+                    p => $"<b>{p.Hunter.hatsuName}</b> ({p.Hunter.nenType}). {p.Hunter.hatsuDescription}\n" +
+                         "Learned with Ko and Ren mastery 50; then hold or press <b>V</b>."),
+                new Entry("It's code — change it", "", p => p.IsCustomHunter, "Only for created Hunters.",
+                    p => "Your Hatsu is a Lua script, run safely inside the game. Open the dashboard (Tab → Hatsu) to read it, change numbers, " +
+                         "targets or the whole idea, <b>Check</b> it and <b>Save & use</b>. The page lists everything the nen API can do. " +
+                         "Each use can only deal so much power for the aura it costs, so make it clever rather than huge.")),
             new Chapter("Jajanken",
                 new Entry("The chant — hold V",
                     "\"Saisho wa guu… Jan… Ken…\" The longer you chant, the stronger the hand; finish the chant for a bonus. You're rooted " +
@@ -202,7 +216,7 @@ namespace HunterAwakening
                 if (known)
                 {
                     GUILayout.Label($"<b>{e.title}</b>", HudGui.Label);
-                    GUILayout.Label(e.body, HudGui.Wrap);
+                    GUILayout.Label(e.live != null ? e.live(p) : e.body, HudGui.Wrap);
                 }
                 else
                 {

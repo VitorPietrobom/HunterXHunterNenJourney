@@ -318,6 +318,16 @@ namespace HunterAwakening
             if (!HasHeardStory(id)) state.knowledge.Add("story:" + id);
         }
 
+        public HunterProfile Hunter => state.hunter;
+        public bool IsCustomHunter => state.hunter != null && state.hunter.custom;
+
+        /// <summary>Starts this save as a created Hunter (from the creator and interview).</summary>
+        public void SetHunter(HunterProfile profile)
+        {
+            state.hunter = profile ?? new HunterProfile();
+            StateChanged?.Invoke();
+        }
+
         public bool IsEncounterCleared(string id) => state.clearedEncounters.Contains(id);
 
         public void MarkEncounterCleared(string id)

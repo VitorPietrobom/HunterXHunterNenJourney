@@ -58,9 +58,10 @@ namespace HunterAwakening
             y += 70 * k + 10;
 
             var body = new GUIStyle(HudGui.Wrap) { fontSize = 16, alignment = TextAnchor.UpperCenter };
-            const string story =
+            var h = session.Progression.Hunter;
+            string story =
                 "The palace is silent. The aura that pressed down on the woods is gone, and the last of the Chimera Ants scatter " +
-                "into the trees.\n\nYou came here with nothing but a strong body and a stubborn heart. You leave it an Enhancer, " +
+                $"into the trees.\n\nYou came here with nothing but a strong body and a stubborn heart. You leave it a{(h.nenType == NenType.Enhancer ? "n" : "")} {h.nenType}, " +
                 "a Nen user who stood in front of a King and did not step back. Kite would say you still have a long way to go. " +
                 "He would also be smiling when he said it.";
             float bodyH = body.CalcHeight(new GUIContent(story), w);

@@ -191,6 +191,14 @@ namespace HunterAwakening
             Enter(State.Inactive, 0f);
         }
 
+        /// <summary>Shoves the opponent (Hatsu effects); it slides and slows like any knockback.</summary>
+        public void Push(Vector3 velocity)
+        {
+            if (!IsActive) return;
+            velocity.y = 0f;
+            knockback += Vector3.ClampMagnitude(velocity, 20f);
+        }
+
         public void Stagger(float duration)
         {
             if (!IsActive) return;

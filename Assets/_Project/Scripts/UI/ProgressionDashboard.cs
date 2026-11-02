@@ -11,6 +11,7 @@ namespace HunterAwakening
     {
         Vector2 leftScroll, middleScroll, rightScroll;
         readonly HuntersGuide guide = new HuntersGuide();
+        readonly HatsuPage hatsuPage = new HatsuPage();
         bool confirmDelete;
 
         public void Draw(GameSession session)
@@ -24,22 +25,32 @@ namespace HunterAwakening
 
             GUILayout.BeginArea(new Rect(area.x + 18, area.y + 12, area.width - 36, area.height - 24));
             GUILayout.Label("HUNTER: AWAKENING", HudGui.Eyebrow);
-            GUILayout.Label(session.GuidePage ? "Hunter's Guide" : "Progression", HudGui.Title);
+            var page = session.Page;
+            if (page == GameSession.DashboardPage.Hatsu && !p.IsCustomHunter) page = session.Page = GameSession.DashboardPage.Progression;
+            GUILayout.Label(page == GameSession.DashboardPage.Guide ? "Hunter's Guide" : page == GameSession.DashboardPage.Hatsu ? "Hatsu" : "Progression", HudGui.Title);
             GUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button("Progression", !session.GuidePage ? HudGui.PrimaryButton : GUI.skin.button, GUILayout.Width(150), GUILayout.Height(28)))
-                session.GuidePage = false;
-            if (GUILayout.Button("Hunter's Guide", session.GuidePage ? HudGui.PrimaryButton : GUI.skin.button, GUILayout.Width(150), GUILayout.Height(28)))
-                session.GuidePage = true;
+            void Tab(string label, GameSession.DashboardPage target)
+            {
+                if (GUILayout.Button(label, page == target ? HudGui.PrimaryButton : GUI.skin.button, GUILayout.Width(150), GUILayout.Height(28)))
+                {
+                    session.Page = target;
+                    GUIUtility.keyboardControl = 0;
+                }
+            }
+            Tab("Progression", GameSession.DashboardPage.Progression);
+            Tab("Hunter's Guide", GameSession.DashboardPage.Guide);
+            if (p.IsCustomHunter) Tab("Hatsu", GameSession.DashboardPage.Hatsu);
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
-            if (session.GuidePage)
+            if (page != GameSession.DashboardPage.Progression)
             {
                 GUILayout.EndArea();
                 // Below the fixed header (eyebrow, title, page buttons), above the footer.
                 const float header = 96f, footer = 50f;
-                var guideArea = new Rect(area.x + 18, area.y + 12 + header, area.width - 36, area.height - 24 - header - footer);
-                guide.Draw(guideArea, p);
+                var pageArea = new Rect(area.x + 18, area.y + 12 + header, area.width - 36, area.height - 24 - header - footer);
+                if (page == GameSession.DashboardPage.Guide) guide.Draw(pageArea, p);
+                else hatsuPage.Draw(pageArea, session);
                 GUILayout.BeginArea(new Rect(area.x + 18, area.yMax - 50, area.width - 36, 40));
                 DrawFooter(session);
                 GUILayout.EndArea();

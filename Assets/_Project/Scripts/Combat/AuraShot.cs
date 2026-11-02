@@ -8,11 +8,14 @@ namespace HunterAwakening
     /// </summary>
     public class AuraShot : MonoBehaviour
     {
-        const float Speed = 20f;
+        float speed = 20f;
         const float Radius = 0.45f;
-        static readonly Color Core = new Color(1f, 0.75f, 0.35f);
+        static readonly Color PaperColor = new Color(1f, 0.75f, 0.35f);
 
         PlayerCombat owner;
+        /// <summary>Set for Hatsu shots: called instead of the Paper hit (target is null when it falls short).</summary>
+        System.Action<EnemyController, Vector3> landed;
+        Color Core = PaperColor;
         HitInfo hit;
         float charge, range, travelled;
         Vector3 direction;
@@ -20,7 +23,18 @@ namespace HunterAwakening
         Light glow;
         float emitDebt;
 
+        /// <summary>A Hatsu's aura shot: its own colour, size and speed, and its own handler for what it hits.</summary>
+        public static void LaunchCustom(PlayerCombat owner, Vector3 origin, Vector3 direction, Color color, float size, float speed,
+            float range, System.Action<EnemyController, Vector3> onLand)
+        {
+            Launch(owner, origin, direction, default, Mathf.Clamp01(size), range, color, Mathf.Clamp(speed, 4f, 60f), onLand);
+        }
+
         public static void Launch(PlayerCombat owner, Vector3 origin, Vector3 direction, HitInfo hit, float charge, float range)
+            => Launch(owner, origin, direction, hit, charge, range, PaperColor, 20f, null);
+
+        static void Launch(PlayerCombat owner, Vector3 origin, Vector3 direction, HitInfo hit, float charge, float range,
+            Color color, float speed, System.Action<EnemyController, Vector3> onLand)
         {
             var go = new GameObject("Paper (aura shot)");
             go.transform.position = origin;
@@ -29,6 +43,9 @@ namespace HunterAwakening
             shot.hit = hit;
             shot.charge = charge;
             shot.range = range;
+            shot.Core = color;
+            shot.speed = speed;
+            shot.landed = onLand;
             direction.y = 0f;
             shot.direction = direction.sqrMagnitude > 0.001f ? direction.normalized : owner.transform.forward;
             shot.Build();
@@ -65,7 +82,7 @@ namespace HunterAwakening
 
         void Update()
         {
-            float step = Speed * Time.deltaTime;
+            float step = speed * Time.deltaTime;
             Vector3 from = transform.position;
             Vector3 to = from + direction * step;
 
@@ -91,7 +108,7 @@ namespace HunterAwakening
             if (struck != null)
             {
                 Vector3 point = from + direction * best;
-                owner.OnPaperLanded(struck, hit, charge, point);
+                if (landed != null) landed(struck, point); else owner.OnPaperLanded(struck, hit, charge, point);
                 Burst(point);
                 Finish();
                 return;
@@ -102,7 +119,7 @@ namespace HunterAwakening
             EmitTrail(Time.deltaTime);
             if (travelled >= range)
             {
-                owner.OnPaperLanded(null, hit, charge, to);
+                if (landed != null) landed(null, to); else owner.OnPaperLanded(null, hit, charge, to);
                 Burst(to);
                 Finish();
             }

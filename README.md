@@ -36,6 +36,15 @@ tells you *why* you lost and what to train next.
 - **The hunt**: four **Chimera Ant camps** in the woods, each tougher than the last. Pull ants one at a time,
   ambush them from Zetsu, and earn **Hunter XP** and levels. Clearing every camp opens **the King's castle**.
 
+**Create your own Hunter**
+- Start as **Gon**, or **create a Hunter**: pick a name, a body, a height and an aura colour, then answer
+  **Kite's interview**. Your answers decide your **Nen type** and write you an **original Hatsu**: a real Lua script
+  with its own name, style and vow.
+- Your Hatsu is code you can change: open the dashboard (**Tab → Hatsu**) to read and edit it, check it, and use your
+  version in the game. Scripts run in a sandbox (the [MoonSharp](https://www.moonsharp.org/) Lua interpreter) through a
+  small `nen` API (sense foes, strike, launch projectiles, bind, push, heal, buff, schedule effects), with no access to
+  files or the system. Each use's power is capped by its aura cost.
+
 **Story and presentation**
 - **Kite** is your mentor. His story beats unlock with your progress, and the game has an ending after Meruem.
 - The **Hunter's Guide**, a notice board and a dashboard page, explains everything you've learned so far.
@@ -98,7 +107,7 @@ Assets/_Project/
     Core/           Progression, stats, fatigue, saves, game session, music
     Player/         Input, movement, camera, animation
     Combat/         Player and enemy combat, encounters, effects, the arena
-    Aura/           Nen techniques, aura visuals, Water Divination
+    Aura/           Nen techniques, aura visuals, Water Divination, the Hatsu Lua runtime and author
     Training/       The drills
     World/          Interactables: rest bench, castle gate, Kite, guide board
     UI/             HUD, dashboard, Hunter's Guide, dialogue, title, pause and ending screens
@@ -123,4 +132,5 @@ What's done, what needs playtesting and what's next: see [ROADMAP.md](ROADMAP.md
 - *Hunter x Hunter*: created by Yoshihiro Togashi. The 2011 anime is by Madhouse, with music by Yoshihisa Hirano.
 - Character models: community creators on Sketchfab and VRChat, adapted for this project.
 - Animations: Mixamo.
+- Lua scripting: [MoonSharp](https://www.moonsharp.org/) (BSD 3-Clause).
 - Built with Unity.

@@ -211,6 +211,36 @@ namespace HunterAwakening.Tests
         }
 
         [Test]
+        public void Interview_AlwaysWritesAValidHatsu()
+        {
+            var rng = new System.Random(7);
+            var types = new System.Collections.Generic.HashSet<NenType>();
+            for (int run = 0; run < 200; run++)
+            {
+                var picks = new System.Collections.Generic.List<int>();
+                foreach (var q in HatsuLibrary.Interview) picks.Add(rng.Next(q.answers.Length));
+                var hunter = new HunterProfile { custom = true, name = "Test" + run };
+                HatsuLibrary.Author(hunter, picks);
+                types.Add(hunter.nenType);
+                Assert.IsTrue(HatsuRuntime.Validate(hunter.hatsuSource, out var meta, out var error), $"{hunter.nenType} '{hunter.hatsuName}': {error}");
+                Assert.AreEqual(hunter.hatsuName, meta.name);
+            }
+            Assert.GreaterOrEqual(types.Count, 5, "the interview reaches most of the six types");
+        }
+
+        [Test]
+        public void HatsuSandbox_StopsLoopsAndHidesTheSystem()
+        {
+            Assert.IsFalse(HatsuRuntime.Validate("hatsu = {}\nfunction hatsu.activate(p) end\nwhile true do end", out _, out var loop));
+            StringAssert.Contains("too long", loop);
+            Assert.IsFalse(HatsuRuntime.Validate("io.open('save.json')", out _, out _), "no file access");
+            Assert.IsFalse(HatsuRuntime.Validate("os.execute('calc')", out _, out _), "no shell");
+            Assert.IsFalse(HatsuRuntime.Validate("load('return 1')()", out _, out _), "no loading code");
+            Assert.IsFalse(HatsuRuntime.Validate("hatsu = { name = 'x' }", out _, out var missing));
+            StringAssert.Contains("activate", missing);
+        }
+
+        [Test]
         public void Aura_IsADailyBudget()
         {
             float pool = StatEffects.AuraCapacity(10);

@@ -159,7 +159,10 @@ namespace HunterAwakening
             if (!KoUnlocked && P.GetMastery(TechniqueId.Ren) >= MasteryMilestones.KoUnlockRenMastery
                             && MaxOutput >= MasteryMilestones.KoUnlockMaxOutput)
                 P.UnlockInsight(KoInsight, "Ko", "With Ren up, press F to pour all your aura into one strike — devastating, expensive, and defenceless while thrown.");
-            if (!JajankenUnlocked && KoUnlocked && P.GetMastery(TechniqueId.Ren) >= MasteryMilestones.JajankenUnlockRenMastery)
+            if (!JajankenUnlocked && KoUnlocked && P.GetMastery(TechniqueId.Ren) >= MasteryMilestones.JajankenUnlockRenMastery && P.IsCustomHunter)
+                P.UnlockInsight(JajankenInsight, $"Hatsu — {P.Hunter.hatsuName}",
+                    $"Your own ability. {P.Hunter.hatsuDescription} Use it with V. Its code is yours to read and change: dashboard (Tab) → Hatsu.");
+            else if (!JajankenUnlocked && KoUnlocked && P.GetMastery(TechniqueId.Ren) >= MasteryMilestones.JajankenUnlockRenMastery)
                 P.UnlockInsight(JajankenInsight, "Jajanken — Rock",
                     "Your first Hatsu. Hold V to chant \"Saisho wa guu… Jan… Ken…\" and release for Rock: the longer the chant, the harder the punch, and finishing it adds a final burst. The chant roots you and leaves you open — a hit scatters the power.");
         }
@@ -292,8 +295,8 @@ namespace HunterAwakening
             LookColor = Look switch
             {
                 AuraLook.Broken => brokenColor,
-                AuraLook.Ken => kenColor,
-                AuraLook.Ren => renColor,
+                AuraLook.Ken => P.IsCustomHunter ? Color.Lerp(P.Hunter.auraColor, kenColor, 0.4f) : kenColor,
+                AuraLook.Ren => P.IsCustomHunter ? P.Hunter.auraColor : renColor,
                 AuraLook.Ten => tenColor,
                 _ => gyoColor
             };
