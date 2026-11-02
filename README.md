@@ -68,7 +68,7 @@ tells you *why* you lost and what to train next.
 | Jajanken: chant, then Rock / Paper / Scissors | hold V, then release / RMB / LMB |
 | Dashboard and Hunter's Guide · pause · controls | Tab · Esc · F1 |
 | Save · reload | F5 · F9 |
-| Cheat menu (stats, unlocks, XP, god mode, teleports) | Ctrl+O |
+| Cheat menu (stats, unlocks, XP, god mode, teleports) | `,` + `.` together |
 
 ## Getting started
 

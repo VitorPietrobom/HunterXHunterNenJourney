@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 namespace HunterAwakening
 {
     /// <summary>
-    /// Ctrl+O: a cheat panel for testing and messing around — refills, god mode, XP, every unlock, every attribute and
+    /// , + .: a cheat panel for testing and messing around — refills, god mode, XP, every unlock, every attribute and
     /// mastery, the ant camps, and teleports. Changes go straight into the save state (and are saved like any progress).
     /// </summary>
     public class CheatMenu : MonoBehaviour
@@ -27,7 +27,9 @@ namespace HunterAwakening
         {
             var kb = Keyboard.current;
             if (kb == null || session.TitleOpen) return;
-            if ((kb.leftCtrlKey.isPressed || kb.rightCtrlKey.isPressed) && kb.oKey.wasPressedThisFrame) Toggle();
+            if (!open && GUIUtility.keyboardControl != 0) return; // typing (e.g. in the Hatsu editor), not a hotkey
+            // Comma and period together, in either order.
+            if ((kb.commaKey.isPressed && kb.periodKey.wasPressedThisFrame) || (kb.periodKey.isPressed && kb.commaKey.wasPressedThisFrame)) Toggle();
             else if (open && kb.escapeKey.wasPressedThisFrame) Toggle();
         }
 
@@ -51,7 +53,7 @@ namespace HunterAwakening
             HudGui.Fill(area, new Color(0.06f, 0.07f, 0.09f, 0.97f)); // opaque, so the HUD underneath doesn't show through
             HudGui.Panel(area);
             GUILayout.BeginArea(new Rect(area.x + 16, area.y + 12, area.width - 32, area.height - 24));
-            GUILayout.Label("CHEATS  <size=11><color=#9aa4b2>Ctrl+O or Esc to close · changes are saved</color></size>", HudGui.Header);
+            GUILayout.Label("CHEATS  <size=11><color=#9aa4b2>, + . or Esc to close · changes are saved</color></size>", HudGui.Header);
             inner = area.width - 32 - 22;
             scroll = GUILayout.BeginScrollView(scroll, false, false, GUIStyle.none, GUI.skin.verticalScrollbar);
 

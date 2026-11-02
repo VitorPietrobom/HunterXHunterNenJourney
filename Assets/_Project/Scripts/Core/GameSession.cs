@@ -51,7 +51,7 @@ namespace HunterAwakening
         /// <summary>The launch title screen is up (see TitleScreen).</summary>
         public bool TitleOpen { get; set; }
         public bool InputBlocked => DashboardOpen || Paused || TitleOpen || DialogueBox.IsOpen || EndingOpen || CheatsOpen;
-        /// <summary>The Ctrl+O cheat menu is open (see CheatMenu).</summary>
+        /// <summary>The , + . cheat menu is open (see CheatMenu).</summary>
         public bool CheatsOpen { get; set; }
         /// <summary>The ending screen is up (see EndingScreen).</summary>
         public bool EndingOpen { get; set; }
