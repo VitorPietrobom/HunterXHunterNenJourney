@@ -179,7 +179,12 @@ namespace HunterAwakening
             y += 20f;
             if (p.IsAuraAwakened)
             {
-                HudGui.Bar(new Rect(x, y, w, 16), a.Current / Mathf.Max(1f, a.Capacity), HudGui.AuraCyan, $"<size=11><b>Aura {a.Current:0} / {a.Capacity:0}</b></size>");
+                // No passive regeneration: say how it comes back when it's low or returning.
+                float auraFill = a.Current / Mathf.Max(1f, a.Capacity);
+                string auraNote = a.ZetsuRecovering ? " · recovering in Zetsu"
+                    : auraFill < 0.25f ? " · rest at the bench to refill" : "";
+                HudGui.Bar(new Rect(x, y, w, 16), auraFill, auraFill < 0.25f ? new Color(0.35f, 0.55f, 0.75f) : HudGui.AuraCyan,
+                    $"<size=11><b>Aura {a.Current:0} / {a.Capacity:0}</b>{auraNote}</size>");
                 y += 20f;
             }
             // Hunter Level: experience from beaten opponents.

@@ -37,6 +37,7 @@ namespace HunterAwakening
             new Beat("awakened", p => p.IsAuraAwakened,
                 "You felt it, didn't you? That warmth, like steam coming off your skin. That's your aura. Most people never notice it.",
                 "Keep it close with Ten — press T. Shut it off completely with Zetsu, Z, and you'll vanish to anyone sensing for you. Push it out with Ren, hold R, and every punch carries it.",
+                "One more thing. Your aura doesn't refill itself while you're out there. Rest on the bench to get it all back — or, if you're stuck in the woods, stand still in Zetsu and let it trickle back.",
                 "Before anything else, though: there's a glass of water by the stone. Hold Ren over it. What the water does tells you what kind of Nen user you are."),
             new Beat("enhancer", p => p.KnowsInsight(WaterDivination.EnhancerInsight),
                 "The water spilled over. An Enhancer — of course you are. Simple, straightforward, and you hit hard. Like father, like son.",

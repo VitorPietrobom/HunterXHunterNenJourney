@@ -247,7 +247,7 @@ namespace HunterAwakening
                 session.PushNotice("Not enough stamina for Rock.", 1.5f);
                 return;
             }
-            if (aura.Current < 10f)
+            if (aura.Current < 20f)
             {
                 session.PushNotice("Not enough aura for Rock.", 1.5f);
                 return;
@@ -285,7 +285,7 @@ namespace HunterAwakening
                 Release(Hand.Rock);
                 return;
             }
-            float drain = StatEffects.JajankenAuraPerSecond(P.GetAttribute(AttributeId.MaxOutput)) * dt;
+            float drain = RockCharge < 1f ? StatEffects.JajankenChantCost(P.GetAttribute(AttributeId.MaxOutput)) * dt / RockChargeTime : 0f;
             if (!aura.TrySpend(drain))
             {
                 CancelChant("Your aura ran dry — the chant collapses.");

@@ -86,7 +86,7 @@ namespace HunterAwakening
             if (output >= CurrentTarget && output <= ceiling) inBandTime += dt;
 
             float efficiency = StatEffects.Efficiency(Attr(AttributeId.Efficiency));
-            float cost = ProgressionMath.AuraCost(StatEffects.RenOutput(Attr(AttributeId.MaxOutput)) * output * auraCostScale, dt, efficiency);
+            float cost = ProgressionMath.AuraCost(StatEffects.RenOutput(Attr(AttributeId.MaxOutput)) * output * auraCostScale * StatEffects.AuraDrainScale, dt, efficiency);
             if (!player.Aura.TrySpend(cost))
             {
                 depleted = true;

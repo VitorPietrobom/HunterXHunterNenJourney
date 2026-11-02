@@ -61,6 +61,8 @@ The first playable vertical slice exists: the `TrainingSandbox` scene (built by 
 
 ## ⭐ Aura / Nen
 
+- [x] ⚠️ **Aura is a daily budget**: a large pool (500, growing with Aura Capacity) with **no passive regeneration**. Resting on the bench refills it (full in ~20 s, faster with Recovery Rate; a short sit is a partial refill); out in the field, standing still in **Zetsu** brings back ~3/s while you're hidden but defenceless. Holding Ten / Ren / Gyo / the aura drills costs a fifth of what it did (Ren ~2.4/s at the start), the big strikes stay expensive (Ko 40, 30 with mastery; a full Jajanken chant 50). The aura bar dims and says "rest at the bench" below 25%. *Playtest: does one pool really carry a camp, and is walking back to rest fun or a chore?*
+
 - [x] ⚠️ **Zetsu** (Z): aura sealed — hidden from opponents beyond detection range, fast aura/fatigue recovery, ambush strike from hiding; takes ×1.5 damage. Mastery from ambushes and hiding near an active opponent.
 - [x] ⚠️ **Gyo** (hold G): reads attack timing (impact countdown, next-attack timer), wider parry/dodge windows scaled by Perception; body slightly less protected. Trains Perception via Gyo Reading.
 - [x] ⚠️ **Gyo Stones** drill: find the stone whose aura mark is visible only through Gyo (Perception, Gyo mastery).

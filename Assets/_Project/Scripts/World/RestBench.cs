@@ -2,7 +2,10 @@ using UnityEngine;
 
 namespace HunterAwakening
 {
-    /// <summary>In-game rest: fast immediate-fatigue recovery, slow accumulated-fatigue recovery. Only active time counts.</summary>
+    /// <summary>
+    /// In-game rest: fast immediate-fatigue recovery, slow accumulated-fatigue recovery, healing — and the only full
+    /// aura refill (aura has no passive regeneration; see StatEffects.AuraCapacity). Only active time counts.
+    /// </summary>
     public class RestBench : Interactable
     {
         [SerializeField] Transform seatPoint;
@@ -14,7 +17,8 @@ namespace HunterAwakening
 
         public override bool IsBusy => resting;
 
-        public override string GetPrompt() => resting ? "[E] Stand up" : "[E] Rest (recovers fatigue, health and stamina)";
+        public override string GetPrompt() => resting ? "[E] Stand up"
+            : Progression.IsAuraAwakened ? "[E] Rest (refills aura; recovers fatigue, health and stamina)" : "[E] Rest (recovers fatigue, health and stamina)";
 
         public override void Interact(PlayerContext ctx)
         {
@@ -52,6 +56,14 @@ namespace HunterAwakening
             restTime += Time.deltaTime;
             player.Health.Heal(healPerSecond * Time.deltaTime);
             player.Vitals.RestoreFull();
+            if (Progression.IsAuraAwakened)
+            {
+                var aura = player.Aura;
+                float rate = aura.Capacity / StatEffects.RestRefillSeconds(Progression.GetAttribute(AttributeId.RecoveryRate));
+                bool wasFull = aura.Current >= aura.Capacity;
+                Progression.SetAuraCurrent(aura.Current + rate * Time.deltaTime, aura.Capacity);
+                if (!wasFull && aura.Current >= aura.Capacity) Session.PushNotice("Aura fully restored.", 2f);
+            }
             if (player.Input.Move.sqrMagnitude > 0.25f) Stop();
         }
 
@@ -65,7 +77,10 @@ namespace HunterAwakening
         {
             if (!resting || Session.InputBlocked) return;
             var f = Progression.Fatigue;
-            HudGui.DrillPanel("Resting",
+            string aura = Progression.IsAuraAwakened
+                ? $"Aura {player.Aura.Current:0} / {player.Aura.Capacity:0}{(player.Aura.Current >= player.Aura.Capacity ? " — full" : " — refilling")}\n"
+                : "";
+            HudGui.DrillPanel("Resting", aura +
                 $"Immediate fatigue {f.Immediate:0} (readiness {HudGui.Pct(f.Readiness)})\n" +
                 $"Accumulated fatigue {f.Accumulated:0} (adaptation {HudGui.Pct(f.AdaptationEfficiency)}) — clears slowly; rest longer after hard days.\n" +
                 $"<size=11>Rested {restTime:0}s · move or [E] to stand up</size>");

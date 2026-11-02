@@ -59,7 +59,7 @@ namespace HunterAwakening
             if (Mathf.Abs(flow - bandCenter) <= BandHalf) inBandTime += dt;
 
             float efficiency = StatEffects.Efficiency(Attr(AttributeId.Efficiency));
-            float cost = ProgressionMath.AuraCost(4f + 2f * intensityLevel * flow, dt, efficiency);
+            float cost = ProgressionMath.AuraCost((4f + 2f * intensityLevel * flow) * StatEffects.AuraDrainScale, dt, efficiency);
             if (!player.Aura.TrySpend(cost))
             {
                 depleted = true;

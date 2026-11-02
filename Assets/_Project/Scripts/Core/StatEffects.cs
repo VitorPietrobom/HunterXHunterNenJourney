@@ -69,8 +69,16 @@ namespace HunterAwakening
         public static float DodgeWindowBonus(double coordination) => Mathf.Min(0.04f * G(coordination), 0.12f);
 
         // Aura
-        public static float AuraCapacity(double capacity) => 100f * (1f + 0.8f * G(capacity));
-        public static float AuraRecovery(double recovery) => 4f * (1f + 0.7f * G(recovery));
+        // Aura is a daily budget: a large pool, no passive regeneration. A long rest at the bench refills it; out in the
+        // field, standing still in Zetsu recovers it slowly. Holding techniques is cheap (AuraDrainScale), the big
+        // strikes are not, so a full pool carries a camp fight with Ren up and a few Rocks — but not two in a row.
+        public static float AuraCapacity(double capacity) => 500f * (1f + 0.8f * G(capacity));
+        /// <summary>Share of each technique's power that a second of holding it costs (Ten, Ren, Gyo, the drills).</summary>
+        public const float AuraDrainScale = 0.2f;
+        /// <summary>Seconds on the rest bench to refill an empty pool (a short sit is a partial refill).</summary>
+        public static float RestRefillSeconds(double recovery) => 20f / (1f + 0.5f * G(recovery));
+        /// <summary>Aura per second recovered standing still in Zetsu.</summary>
+        public static float ZetsuAuraRecovery(double recovery) => 3f * (1f + 0.7f * G(recovery));
         public static float Efficiency(double efficiency) => Mathf.Max(ProgressionMath.MinEfficiency, 1f + 0.5f * G(efficiency));
         public static float RenOutput(double maxOutput) => 12f * (1f + 0.8f * G(maxOutput));
         public static float RenDamageFactor(double maxOutput, double control) => Mathf.Min(1.4f + 0.35f * G(maxOutput) + 0.15f * G(control), 3f);
@@ -103,7 +111,6 @@ namespace HunterAwakening
 
         // Zetsu: aura shut off. Hidden and recovering fast, but defenceless.
         public const float ZetsuDamageTakenMultiplier = 1.5f;
-        public const float ZetsuAuraRecoveryMultiplier = 2.5f;
         public const float ZetsuAmbushDamageMultiplier = 1.6f;
         /// <summary>Distance at which a rival notices a player hiding in Zetsu.</summary>
         public static float ZetsuDetectionRange(float zetsuMastery) => Mathf.Lerp(6f, 3f, Mathf.Clamp01(zetsuMastery / 100f));
@@ -122,15 +129,15 @@ namespace HunterAwakening
 
         // Ko: all aura into one strike. Huge damage, big cost, and a defenceless body while it's thrown.
         public static float KoDamageMultiplier(double maxOutput) => Mathf.Min(2.5f + 0.3f * G(maxOutput), 4f);
-        public static float KoAuraCost(float currentAura, float koMastery)
-            => Mathf.Max(20f, currentAura * (koMastery >= MasteryMilestones.KoCheap ? 0.25f : 0.35f));
+        public static float KoAuraCost(float koMastery) => koMastery >= MasteryMilestones.KoCheap ? 30f : 40f;
         public const float KoDamageTakenMultiplier = 1.8f;
         public const float KoStagger = 1.3f;
 
         // Jajanken (Rock): Gon's Hatsu. Power grows with each word of the chant; the chant roots you and leaves you open.
         // Mastery shortens the chant and raises the ceiling; completing it is the vow that adds the final burst.
         public static float JajankenChargeTime(float mastery) => Mathf.Lerp(2.4f, 1.3f, Mathf.Clamp01(mastery / 100f));
-        public static float JajankenAuraPerSecond(double maxOutput) => 10f * (1f + 0.4f * G(maxOutput));
+        /// <summary>Aura a full chant gathers into the hand (spent as the chant builds, whatever its length).</summary>
+        public static float JajankenChantCost(double maxOutput) => 50f * (1f + 0.2f * G(maxOutput));
         /// <summary>Charge below this ("Saisho wa guu" alone) gathers nothing; releasing cancels.</summary>
         public const float JajankenMinCharge = 0.34f;
         public const float JajankenChantDamageTakenMultiplier = 1.35f;
@@ -181,7 +188,7 @@ namespace HunterAwakening
             AttributeId.ControlPrecision => $"Stable band ±{TenBand(v) * 100:0}% · Ren ceiling {RenControlCeiling(v) * 100:0}% (keep ahead of Max Output)",
             AttributeId.Efficiency => $"Efficiency ×{Efficiency(v):0.00}",
             AttributeId.Perception => $"With Gyo: parry window +{GyoParryBonus(v) * 1000:0} ms · dodge window +{GyoDodgeBonus(v) * 1000:0} ms",
-            AttributeId.RecoveryRate => $"Aura recovery {AuraRecovery(v):0.0}/s",
+            AttributeId.RecoveryRate => $"Rest refills aura in {RestRefillSeconds(v):0}s · Zetsu recovers {ZetsuAuraRecovery(v):0.0}/s",
             _ => ""
         };
     }

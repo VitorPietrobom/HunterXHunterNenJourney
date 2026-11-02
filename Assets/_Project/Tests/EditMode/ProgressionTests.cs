@@ -160,8 +160,7 @@ namespace HunterAwakening.Tests
             Assert.Less(StatEffects.KenDamageTakenMultiplier(10, 10, 0), StatEffects.RenDamageTakenMultiplier(10), "Ken out-defends Ren");
             Assert.GreaterOrEqual(StatEffects.KenDamageTakenMultiplier(1e9, 1e9, 1000), 0.2f);
             Assert.LessOrEqual(StatEffects.KoDamageMultiplier(1e9), 4f);
-            Assert.AreEqual(20f, StatEffects.KoAuraCost(10f, 0f), 1e-4f, "Ko has a minimum cost");
-            Assert.Less(StatEffects.KoAuraCost(200f, 100f), StatEffects.KoAuraCost(200f, 0f), "Ko mastery cuts the cost");
+            Assert.Less(StatEffects.KoAuraCost(100f), StatEffects.KoAuraCost(0f), "Ko mastery cuts the cost");
         }
 
         [Test]
@@ -209,6 +208,18 @@ namespace HunterAwakening.Tests
             Assert.Greater(p.Fatigue.Immediate, 0f);
             Assert.IsTrue(report.adapted);
             Assert.AreEqual(1, p.TrainingSessions);
+        }
+
+        [Test]
+        public void Aura_IsADailyBudget()
+        {
+            float pool = StatEffects.AuraCapacity(10);
+            float renPerSecond = StatEffects.RenOutput(10) * StatEffects.AuraDrainScale;
+            Assert.Greater(pool / renPerSecond, 150f, "a full pool holds Ren through a long fight");
+            Assert.Less(StatEffects.JajankenChantCost(10), pool * 0.15f, "several Rocks fit in one pool");
+            Assert.Greater(StatEffects.KoAuraCost(0f), renPerSecond * 10f, "a Ko costs far more than holding Ren for a while");
+            Assert.Less(StatEffects.RestRefillSeconds(40), StatEffects.RestRefillSeconds(10), "Recovery Rate speeds up resting");
+            Assert.Less(StatEffects.ZetsuAuraRecovery(10) * 60f, pool * 0.5f, "Zetsu recovery is slow: a minute gives back less than half");
         }
 
         [Test]

@@ -65,13 +65,19 @@ namespace HunterAwakening
                     "Aura is the life energy leaking from every body. After 3 training sessions, meditate at the <b>Meditation Stone</b> (E) " +
                     "to sense it and hold it. Every Nen technique starts here.",
                     Aura, "Complete 3 training sessions, then meditate at the Meditation Stone."),
+                new Entry("Your aura is a daily budget",
+                    "Your aura doesn't come back on its own. A long rest at the <b>Rest Bench</b> refills it completely (a short sit, " +
+                    "partly). Out in the field, stand still in <b>Zetsu</b> and it slowly returns — while you're hidden but defenceless. " +
+                    "Holding Ten, Ren and Gyo costs little; Ko and Jajanken cost a lot. Plan your fights, and walk back to rest before a big one.\n" +
+                    "<b>Aura Capacity</b> makes the pool bigger; <b>Recovery Rate</b> makes resting and Zetsu refill it faster.",
+                    Aura, "Awaken your aura first."),
                 new Entry("Ten — press T",
                     "Keep your aura flowing around the body instead of leaking away. A steady shroud that softens hits and slows aura loss. " +
                     "Train it at the Aura Mat.",
                     Aura, "Awaken your aura first."),
                 new Entry("Zetsu — press Z",
                     "Seal your aura completely. Opponents lose track of you beyond a few metres, and your next strike is an <b>ambush</b> that " +
-                    "ignores guard and staggers. But with no aura around you, every hit lands harder.",
+                    "ignores guard and staggers. Standing still in Zetsu slowly brings your aura back. But with no aura around you, every hit lands harder.",
                     Aura, "Awaken your aura first."),
                 new Entry("Ren — hold R",
                     "Push out more aura than usual. Strikes hit much harder, guard-break and knock back, and weaker opponents hesitate. " +

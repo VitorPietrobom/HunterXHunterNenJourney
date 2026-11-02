@@ -46,6 +46,8 @@ namespace HunterAwakening
         public bool ZetsuActive { get; private set; }
         public bool GyoActive { get; private set; }
         public bool RenBroken => lockoutTimer > 0f;
+        /// <summary>Standing still in Zetsu: the aura slowly returns.</summary>
+        public bool ZetsuRecovering { get; private set; }
 
         public AuraLook Look { get; private set; }
         public Color LookColor { get; private set; }
@@ -146,7 +148,7 @@ namespace HunterAwakening
         public bool TrySpendKo()
         {
             if (!CanKo) return false;
-            return TrySpend(StatEffects.KoAuraCost(Current, P.GetMastery(TechniqueId.Ko)));
+            return TrySpend(StatEffects.KoAuraCost(P.GetMastery(TechniqueId.Ko)));
         }
 
         void CheckAdvancedUnlocks()
@@ -196,7 +198,7 @@ namespace HunterAwakening
                 ZetsuActive = !ZetsuActive;
                 if (ZetsuActive) TenActive = false;
                 session.PushNotice(ZetsuActive
-                    ? "Zetsu: aura sealed. Hidden and recovering fast — but every hit lands harder."
+                    ? "Zetsu: aura sealed. Hidden, and standing still lets your aura slowly return — but every hit lands harder."
                     : "Zetsu released.", 2.5f);
             }
             if (!blocked && input.TenPressed)
@@ -234,21 +236,19 @@ namespace HunterAwakening
             float capacity = Capacity;
             if (powerPerSecond > 0f)
             {
-                float cost = ProgressionMath.AuraCost(powerPerSecond, dt, StatEffects.Efficiency(P.GetAttribute(AttributeId.Efficiency)));
+                float cost = ProgressionMath.AuraCost(powerPerSecond * StatEffects.AuraDrainScale, dt, StatEffects.Efficiency(P.GetAttribute(AttributeId.Efficiency)));
                 P.SetAuraCurrent(Current - cost, capacity);
                 if (Current <= 0f)
                 {
                     TenActive = RenActive = GyoActive = false;
                     P.AddExertion(5f);
-                    session.PushNotice("Aura depleted! Ten, Ren and Gyo dropped.", 3f);
+                    session.PushNotice("Aura depleted! Ten, Ren and Gyo dropped. Rest at the bench, or stand still in Zetsu to recover.", 4f);
                 }
             }
-            if (!RenActive && DrillGlow <= 0f && HatsuCharge <= 0f)
-            {
-                float recovery = StatEffects.AuraRecovery(P.GetAttribute(AttributeId.RecoveryRate))
-                                 * (TenActive ? 0.3f : 1f) * (ZetsuActive ? StatEffects.ZetsuAuraRecoveryMultiplier : 1f);
-                P.SetAuraCurrent(Current + recovery * dt, capacity);
-            }
+            // No passive regeneration: only stillness in Zetsu (here) or a rest at the bench brings aura back.
+            ZetsuRecovering = ZetsuActive && !motor.IsMoving && Current < capacity;
+            if (ZetsuRecovering)
+                P.SetAuraCurrent(Current + StatEffects.ZetsuAuraRecovery(P.GetAttribute(AttributeId.RecoveryRate)) * dt, capacity);
             if (ZetsuActive)
             {
                 P.Fatigue.Recover(dt * 4f, false); // sealing the aura lets the body recover faster
